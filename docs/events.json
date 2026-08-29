@@ -17,5 +17,24 @@
     "last_checked": null,
     "alert_sent_for_year": null,
     "calendar_uid": "lovesupremefestival-com@calendar-app.apineschi"
+  },
+  "empire": {
+    "id": "empire",
+    "name": "Empire",
+    "url": "https://www.profounddecisions.co.uk",
+    "location": null,
+    "start_date": null,
+    "end_date": null,
+    "is_free": false,
+    "price_text": null,
+    "tags": [
+      "larp",
+      "camping"
+    ],
+    "notes": "",
+    "last_known_year": null,
+    "last_checked": null,
+    "alert_sent_for_year": null,
+    "calendar_uid": "empire@calendar-app.apineschi"
   }
 }
