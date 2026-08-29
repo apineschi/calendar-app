@@ -182,7 +182,7 @@
 </div>
 
 <script>
-const WORKER_URL = "https://calendar-app.anastasia-pineschi.workers.dev/";
+const WORKER_URL = "https://calendar-app.anastasia-pineschi.workers.dev".replace(/\/$/, "");
 
 let events = {};
 let activeTag = null;
