@@ -124,6 +124,36 @@
   .card-actions { margin-top: 10px; display: flex; gap: 8px; }
   .empty { color: var(--muted); font-size: 0.9rem; padding: 20px 0; text-align: center; }
   code { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 2px 6px; word-break: break-all; }
+  .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .cal-header h2 { margin: 0; }
+  .cal-nav { cursor: pointer; font-size: 1.2rem; padding: 2px 10px; user-select: none; color: var(--muted); }
+  .cal-nav:hover { color: var(--text); }
+  .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .cal-weekday { font-size: 0.7rem; color: var(--muted); text-align: center; padding-bottom: 4px; }
+  .cal-cell {
+    min-height: 64px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px;
+    font-size: 0.75rem;
+  }
+  .cal-cell.empty { border-color: transparent; }
+  .cal-cell.today { border-color: var(--accent); border-width: 2px; }
+  .cal-daynum { color: var(--muted); margin-bottom: 2px; }
+  .cal-pill {
+    background: var(--accent);
+    color: var(--accent-text);
+    border-radius: 4px;
+    padding: 1px 4px;
+    margin-bottom: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  @media (max-width: 480px) {
+    .cal-cell { min-height: 44px; font-size: 0.65rem; padding: 2px; }
+  }
 </style>
 </head>
 <body>
@@ -150,6 +180,15 @@
   <div class="row">
     <button class="primary" id="add-submit">Add event</button>
   </div>
+</div>
+
+<div class="panel">
+  <div class="cal-header">
+    <span class="cal-nav" id="cal-prev">‹</span>
+    <h2 id="cal-title"></h2>
+    <span class="cal-nav" id="cal-next">›</span>
+  </div>
+  <div class="calendar-grid" id="calendar-grid"></div>
 </div>
 
 <div class="tag-filter" id="tag-filter"></div>
@@ -186,6 +225,8 @@ const WORKER_URL = "https://calendar-app.anastasia-pineschi.workers.dev";
 
 let events = {};
 let activeTag = null;
+let calendarMonth = new Date();
+calendarMonth.setDate(1);
 
 function fmtDate(iso) {
   if (!iso) return null;
@@ -211,7 +252,64 @@ function allTags() {
   return [...tags].sort();
 }
 
+function eventsOnDate(dateStr) {
+  return Object.values(events).filter((e) => {
+    if (!e.start_date) return false;
+    const end = e.end_date || e.start_date;
+    return dateStr >= e.start_date && dateStr <= end;
+  });
+}
+
+function renderCalendar() {
+  const year = calendarMonth.getFullYear();
+  const month = calendarMonth.getMonth();
+  document.getElementById("cal-title").textContent =
+    calendarMonth.toLocaleDateString(undefined, { year: "numeric", month: "long" });
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const firstWeekday = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const weekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  let html = weekdayLabels.map((w) => `<div class="cal-weekday">${w}</div>`).join("");
+
+  for (let i = 0; i < firstWeekday; i++) {
+    html += `<div class="cal-cell empty"></div>`;
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    const dayEvents = eventsOnDate(dateStr);
+    const pills = dayEvents
+      .map((e) => `<div class="cal-pill" data-id="${esc(e.id)}" title="${esc(e.name)}">${esc(e.name)}</div>`)
+      .join("");
+    html += `<div class="cal-cell ${dateStr === todayStr ? "today" : ""}"><div class="cal-daynum">${d}</div>${pills}</div>`;
+  }
+
+  const grid = document.getElementById("calendar-grid");
+  grid.innerHTML = html;
+  grid.querySelectorAll(".cal-pill").forEach((pill) => {
+    pill.addEventListener("click", () => {
+      const card = document.querySelector(`.card[data-id="${CSS.escape(pill.dataset.id)}"]`);
+      if (!card) return;
+      card.scrollIntoView({ behavior: "smooth", block: "center" });
+      card.style.outline = `2px solid var(--accent)`;
+      setTimeout(() => { card.style.outline = ""; }, 1500);
+    });
+  });
+}
+
+document.getElementById("cal-prev").addEventListener("click", () => {
+  calendarMonth.setMonth(calendarMonth.getMonth() - 1);
+  renderCalendar();
+});
+document.getElementById("cal-next").addEventListener("click", () => {
+  calendarMonth.setMonth(calendarMonth.getMonth() + 1);
+  renderCalendar();
+});
+
 function render() {
+  renderCalendar();
   const filterEl = document.getElementById("tag-filter");
   filterEl.innerHTML = allTags()
     .map((t) => `<div class="chip ${t === activeTag ? "active" : ""}" data-tag="${esc(t)}">${esc(t)}</div>`)
