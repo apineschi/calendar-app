@@ -45,6 +45,8 @@ function jsonResponse(data, status, origin) {
   });
 }
 
+class NotFoundError extends Error {}
+
 async function githubApi(env, path, options = {}) {
   const url = `https://api.github.com/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/contents/${path}`;
   const res = await fetch(url, {
@@ -72,45 +74,49 @@ async function getJsonFile(env, path, fallback) {
   return { data: JSON.parse(content), sha: body.sha };
 }
 
-async function putJsonFile(env, path, data, sha, message) {
-  const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
-  const res = await githubApi(env, path, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      message,
-      content,
-      sha: sha || undefined,
-      committer: { name: "calendar-app-bot", email: "bot@calendar-app.local" },
-    }),
-  });
-  if (!res.ok) {
-    throw new Error(`GitHub PUT ${path} failed: ${res.status} ${await res.text()}`);
-  }
-}
-
-async function putTextFile(env, path, text, sha, message) {
-  const content = btoa(unescape(encodeURIComponent(text)));
-  const res = await githubApi(env, path, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      message,
-      content,
-      sha: sha || undefined,
-      committer: { name: "calendar-app-bot", email: "bot@calendar-app.local" },
-    }),
-  });
-  if (!res.ok) {
-    throw new Error(`GitHub PUT ${path} failed: ${res.status} ${await res.text()}`);
-  }
-}
-
 async function getFileSha(env, path) {
   const res = await githubApi(env, path);
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`GitHub GET ${path} failed: ${res.status} ${await res.text()}`);
   return (await res.json()).sha;
+}
+
+async function putFile(env, path, contentText, sha, message) {
+  const content = btoa(unescape(encodeURIComponent(contentText)));
+  const res = await githubApi(env, path, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      message,
+      content,
+      sha: sha || undefined,
+      committer: { name: "calendar-app-bot", email: "bot@calendar-app.local" },
+    }),
+  });
+  if (!res.ok) {
+    const err = new Error(`GitHub PUT ${path} failed: ${res.status} ${await res.text()}`);
+    err.status = res.status;
+    throw err;
+  }
+}
+
+// GitHub's Contents API requires the current file's SHA on every write, so a
+// plain "read SHA, then write" is a read-modify-write race: if anything else
+// touches the file in between (a second rapid tap, the monthly scan workflow
+// committing at the same moment), the write is rejected with a 409 because
+// the SHA it has is now stale. Retrying from a fresh read fixes this - the
+// same technique is used for both docs/events.json (via withEventsUpdate)
+// and docs/calendar.ics (via regenerateIcs) below.
+async function putWithRetry(env, path, buildContent, message, attempts = 3) {
+  for (let i = 0; i < attempts; i++) {
+    const sha = await getFileSha(env, path);
+    try {
+      await putFile(env, path, buildContent(), sha, message);
+      return;
+    } catch (err) {
+      if (err.status !== 409 || i === attempts - 1) throw err;
+    }
+  }
 }
 
 function slugify(text) {
@@ -187,8 +193,28 @@ function buildIcs(events) {
 }
 
 async function regenerateIcs(env, events) {
-  const sha = await getFileSha(env, "docs/calendar.ics");
-  await putTextFile(env, "docs/calendar.ics", buildIcs(events), sha, "Regenerate calendar.ics");
+  await putWithRetry(env, "docs/calendar.ics", () => buildIcs(events), "Regenerate calendar.ics");
+}
+
+// Shared read-modify-write for docs/events.json, retrying the *whole* cycle
+// (including a fresh read) on a 409 rather than just the write - a stale
+// read means `mutate` may have been working off outdated data too, not just
+// an outdated SHA. `mutate` may throw NotFoundError to abort without any
+// write at all (no retry, no commit). `messageFn(events, result)` builds the
+// commit message from the post-mutation state, since e.g. an add's chosen ID
+// isn't known until `mutate` runs.
+async function withEventsUpdate(env, mutate, messageFn, attempts = 3) {
+  for (let i = 0; i < attempts; i++) {
+    const { data: events, sha } = await getJsonFile(env, "docs/events.json", {});
+    const result = mutate(events);
+    try {
+      await putFile(env, "docs/events.json", JSON.stringify(events, null, 2), sha, messageFn(events, result));
+      await regenerateIcs(env, events);
+      return { events, result };
+    } catch (err) {
+      if (err.status !== 409 || i === attempts - 1) throw err;
+    }
+  }
 }
 
 async function handleAddEvent(request, env, origin) {
@@ -197,28 +223,30 @@ async function handleAddEvent(request, env, origin) {
     return jsonResponse({ error: "Missing url" }, 400, origin);
   }
 
-  const { data: events, sha } = await getJsonFile(env, "docs/events.json", {});
-  const id = uniqueId(events, slugify(name || new URL(url).hostname));
-
-  events[id] = {
-    id,
-    name: name || new URL(url).hostname,
-    url,
-    location: null,
-    start_date: null,
-    end_date: null,
-    is_free: typeof is_free === "boolean" ? is_free : null,
-    price_text: null,
-    tags: normalizeTags(tags),
-    notes: notes || "",
-    last_known_year: null,
-    last_checked: null,
-    alert_sent_for_year: null,
-    calendar_uid: `${id}@calendar-app.apineschi`,
-  };
-
-  await putJsonFile(env, "docs/events.json", events, sha, `Add event: ${events[id].name}`);
-  await regenerateIcs(env, events);
+  const { events, result: id } = await withEventsUpdate(
+    env,
+    (events) => {
+      const newId = uniqueId(events, slugify(name || new URL(url).hostname));
+      events[newId] = {
+        id: newId,
+        name: name || new URL(url).hostname,
+        url,
+        location: null,
+        start_date: null,
+        end_date: null,
+        is_free: typeof is_free === "boolean" ? is_free : null,
+        price_text: null,
+        tags: normalizeTags(tags),
+        notes: notes || "",
+        last_known_year: null,
+        last_checked: null,
+        alert_sent_for_year: null,
+        calendar_uid: `${newId}@calendar-app.apineschi`,
+      };
+      return newId;
+    },
+    (events, newId) => `Add event: ${events[newId].name}`
+  );
 
   return jsonResponse({ id, event: events[id] }, 200, origin);
 }
@@ -230,51 +258,55 @@ async function handleEditEvent(request, env, origin) {
     return jsonResponse({ error: "Missing id" }, 400, origin);
   }
 
-  const { data: events, sha } = await getJsonFile(env, "docs/events.json", {});
-  if (!events[id]) {
-    return jsonResponse({ error: "Event not found" }, 404, origin);
-  }
+  const editable = ["name", "location", "start_date", "end_date", "is_free", "price_text", "notes"];
 
-  const editable = [
-    "name",
-    "location",
-    "start_date",
-    "end_date",
-    "is_free",
-    "price_text",
-    "notes",
-  ];
-  for (const field of editable) {
-    if (field in body) events[id][field] = body[field];
-  }
-  if ("tags" in body) events[id].tags = normalizeTags(body.tags);
+  let events;
+  try {
+    ({ events } = await withEventsUpdate(
+      env,
+      (events) => {
+        if (!events[id]) throw new NotFoundError();
+        for (const field of editable) {
+          if (field in body) events[id][field] = body[field];
+        }
+        if ("tags" in body) events[id].tags = normalizeTags(body.tags);
 
-  // A manually-entered/corrected date should count as a confirmed sighting,
-  // same as one the scanner found itself.
-  if (body.start_date) {
-    const year = Number(String(body.start_date).slice(0, 4));
-    if (!events[id].last_known_year || year > events[id].last_known_year) {
-      events[id].last_known_year = year;
-      events[id].alert_sent_for_year = null;
-    }
+        // A manually-entered/corrected date should count as a confirmed
+        // sighting, same as one the scanner found itself.
+        if (body.start_date) {
+          const year = Number(String(body.start_date).slice(0, 4));
+          if (!events[id].last_known_year || year > events[id].last_known_year) {
+            events[id].last_known_year = year;
+            events[id].alert_sent_for_year = null;
+          }
+        }
+      },
+      (events) => `Edit event: ${events[id].name}`
+    ));
+  } catch (err) {
+    if (err instanceof NotFoundError) return jsonResponse({ error: "Event not found" }, 404, origin);
+    throw err;
   }
-
-  await putJsonFile(env, "docs/events.json", events, sha, `Edit event: ${events[id].name}`);
-  await regenerateIcs(env, events);
 
   return jsonResponse({ event: events[id] }, 200, origin);
 }
 
 async function handleDeleteEvent(request, env, origin) {
   const { id } = await request.json();
-  const { data: events, sha } = await getJsonFile(env, "docs/events.json", {});
-  if (!events[id]) {
-    return jsonResponse({ error: "Event not found" }, 404, origin);
-  }
 
-  delete events[id];
-  await putJsonFile(env, "docs/events.json", events, sha, `Delete event: ${id}`);
-  await regenerateIcs(env, events);
+  try {
+    await withEventsUpdate(
+      env,
+      (events) => {
+        if (!events[id]) throw new NotFoundError();
+        delete events[id];
+      },
+      () => `Delete event: ${id}`
+    );
+  } catch (err) {
+    if (err instanceof NotFoundError) return jsonResponse({ error: "Event not found" }, 404, origin);
+    throw err;
+  }
 
   return jsonResponse({ ok: true }, 200, origin);
 }
