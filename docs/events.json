@@ -1,1 +1,21 @@
-{}
+{
+  "lovesupremefestival-com": {
+    "id": "lovesupremefestival-com",
+    "name": "Love Supreme Jazz Festival",
+    "url": "https://lovesupremefestival.com/",
+    "location": null,
+    "start_date": null,
+    "end_date": null,
+    "is_free": false,
+    "price_text": null,
+    "tags": [
+      "music",
+      "festival"
+    ],
+    "notes": "",
+    "last_known_year": null,
+    "last_checked": null,
+    "alert_sent_for_year": null,
+    "calendar_uid": "lovesupremefestival-com@calendar-app.apineschi"
+  }
+}
