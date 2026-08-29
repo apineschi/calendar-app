@@ -1,0 +1,59 @@
+name: Monthly Event Check
+
+on:
+  schedule:
+    - cron: '0 9 1 * *'
+  workflow_dispatch:
+
+jobs:
+  check_events:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run scanner
+        id: scanner
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          python main.py > results.txt
+          cat results.txt
+
+          if grep -q "FOUND" results.txt; then
+            echo "ALERT_FOUND=true" >> $GITHUB_ENV
+          fi
+
+      - name: Send email notification
+        if: env.ALERT_FOUND == 'true'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "Calendar Alert: an event's next date is still missing"
+          to: ${{ secrets.EMAIL_TO }}
+          from: "Calendar App Bot"
+          html_body: file://email_digest.html
+
+      - name: Save scan results
+        if: always()
+        run: |
+          git config --global user.name 'Calendar-Bot'
+          git config --global user.email 'bot@github.com'
+          git add docs/events.json docs/calendar.ics
+          git commit -m "Monthly event check" || echo "No changes to commit"
+          git push

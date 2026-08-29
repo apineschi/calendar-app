@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calendar App</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f6f5f2;
+    --card: #ffffff;
+    --text: #1b1b1b;
+    --muted: #6b6b6b;
+    --border: #e2e0da;
+    --accent: #2f6f4f;
+    --accent-text: #ffffff;
+    --badge-free: #2f6f4f;
+    --badge-paid: #7a4b1c;
+    --danger: #a33;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17181a;
+      --card: #232427;
+      --text: #ececec;
+      --muted: #9a9a9a;
+      --border: #35373b;
+      --accent: #5fae86;
+      --accent-text: #0d0d0d;
+      --badge-free: #5fae86;
+      --badge-paid: #d19a5a;
+      --danger: #e07070;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding: 16px;
+  }
+  h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 20px; }
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+  .panel h2 { font-size: 1rem; margin: 0 0 12px; }
+  label { display: block; font-size: 0.8rem; color: var(--muted); margin: 10px 0 4px; }
+  input[type=text], input[type=url], input[type=password], textarea, select {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.95rem;
+  }
+  textarea { min-height: 60px; resize: vertical; }
+  button {
+    border: none;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+  button.primary { background: var(--accent); color: var(--accent-text); }
+  button.secondary { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  button.danger { background: transparent; border: 1px solid var(--danger); color: var(--danger); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .tag-filter { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+  .chip {
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 4px 12px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    color: var(--text);
+    background: var(--card);
+  }
+  .chip.active { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+  .cards { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+  }
+  .card h3 { margin: 0 0 6px; font-size: 1.05rem; }
+  .card h3 a { color: inherit; text-decoration: none; }
+  .card .meta { font-size: 0.85rem; color: var(--muted); line-height: 1.5; }
+  .badge {
+    display: inline-block;
+    border-radius: 999px;
+    padding: 2px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #fff;
+    margin-right: 6px;
+  }
+  .badge.free { background: var(--badge-free); }
+  .badge.paid { background: var(--badge-paid); }
+  .badge.pending { background: var(--muted); }
+  .tags { margin-top: 8px; }
+  .tags span {
+    display: inline-block;
+    font-size: 0.75rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 2px 8px;
+    margin: 0 4px 4px 0;
+  }
+  .notes { margin-top: 8px; font-size: 0.85rem; white-space: pre-wrap; }
+  .card-actions { margin-top: 10px; display: flex; gap: 8px; }
+  .empty { color: var(--muted); font-size: 0.9rem; padding: 20px 0; text-align: center; }
+  code { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 2px 6px; word-break: break-all; }
+</style>
+</head>
+<body>
+
+<h1>Calendar App</h1>
+<div class="subtitle">Recurring event tracker — add a URL, it checks monthly for next year's date.</div>
+
+<div class="panel">
+  <h2>Add an event</h2>
+  <label for="add-url">Event URL</label>
+  <input type="url" id="add-url" placeholder="https://example.com/festival">
+  <label for="add-name">Name (optional — defaults to the site's domain)</label>
+  <input type="text" id="add-name" placeholder="Glastonbury Festival">
+  <label for="add-tags">Tags (comma separated)</label>
+  <input type="text" id="add-tags" placeholder="music, festival, outdoor">
+  <label for="add-notes">Notes</label>
+  <textarea id="add-notes" placeholder="Anything you want to remember about this event"></textarea>
+  <label for="add-free">Free or paid</label>
+  <select id="add-free">
+    <option value="">Unknown yet</option>
+    <option value="true">Free</option>
+    <option value="false">Paid</option>
+  </select>
+  <div class="row">
+    <button class="primary" id="add-submit">Add event</button>
+  </div>
+</div>
+
+<div class="tag-filter" id="tag-filter"></div>
+
+<div class="cards" id="cards"></div>
+<div class="empty" id="empty-state" style="display:none;">No events tracked yet — add one above.</div>
+
+<div class="panel" style="margin-top:20px;">
+  <h2>Subscribe on Samsung Calendar</h2>
+  <p style="font-size:0.85rem; color:var(--muted); line-height:1.5;">
+    One-time setup: open Google Calendar → <strong>Other calendars</strong> → <strong>+</strong>
+    → <strong>From URL</strong>, and paste this feed link. Samsung Calendar automatically
+    mirrors any Google account calendars, so it'll show up there too — toggle it on/off from
+    either app's calendar list whenever you like. Updates happen roughly monthly (whenever
+    the scan runs), so Google's own refresh delay for subscribed feeds doesn't matter here.
+  </p>
+  <code id="ics-url"></code>
+</div>
+
+<div id="password-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); align-items:center; justify-content:center;">
+  <div class="panel" style="max-width:320px; margin:0;">
+    <h2>App password</h2>
+    <p style="font-size:0.85rem; color:var(--muted);">Needed once to add/edit/delete events on this device.</p>
+    <input type="password" id="password-input" autocapitalize="off" autocorrect="off" spellcheck="false">
+    <div class="row">
+      <button class="primary" id="password-submit">Save</button>
+      <button class="secondary" id="password-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const WORKER_URL = "REPLACE_WITH_YOUR_WORKER_URL";
+
+let events = {};
+let activeTag = null;
+
+function fmtDate(iso) {
+  if (!iso) return null;
+  const d = new Date(`${iso}T00:00:00`);
+  return d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+}
+
+function esc(s) {
+  const div = document.createElement("div");
+  div.textContent = s == null ? "" : String(s);
+  return div.innerHTML;
+}
+
+async function loadEvents() {
+  const res = await fetch("events.json", { cache: "no-store" });
+  events = await res.json();
+  render();
+}
+
+function allTags() {
+  const tags = new Set();
+  Object.values(events).forEach((e) => (e.tags || []).forEach((t) => tags.add(t)));
+  return [...tags].sort();
+}
+
+function render() {
+  const filterEl = document.getElementById("tag-filter");
+  filterEl.innerHTML = allTags()
+    .map((t) => `<div class="chip ${t === activeTag ? "active" : ""}" data-tag="${esc(t)}">${esc(t)}</div>`)
+    .join("");
+  filterEl.querySelectorAll(".chip").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      activeTag = activeTag === chip.dataset.tag ? null : chip.dataset.tag;
+      render();
+    });
+  });
+
+  const list = Object.values(events)
+    .filter((e) => !activeTag || (e.tags || []).includes(activeTag))
+    .sort((a, b) => (a.start_date || "9999").localeCompare(b.start_date || "9999"));
+
+  const cardsEl = document.getElementById("cards");
+  document.getElementById("empty-state").style.display = list.length ? "none" : "block";
+
+  cardsEl.innerHTML = list.map((e) => {
+    const dateLabel = e.start_date
+      ? fmtDate(e.start_date) + (e.end_date && e.end_date !== e.start_date ? ` – ${fmtDate(e.end_date)}` : "")
+      : "Date pending";
+    const priceBadge = e.is_free === true
+      ? '<span class="badge free">Free</span>'
+      : e.is_free === false
+        ? `<span class="badge paid">${esc(e.price_text || "Paid")}</span>`
+        : '<span class="badge pending">Price unknown</span>';
+
+    return `
+      <div class="card" data-id="${esc(e.id)}">
+        <h3><a href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.name)}</a></h3>
+        <div class="meta">
+          ${dateLabel}<br>
+          ${e.location ? esc(e.location) : "Location unknown"}
+        </div>
+        <div style="margin-top:8px;">${priceBadge}</div>
+        <div class="tags">${(e.tags || []).map((t) => `<span>${esc(t)}</span>`).join("")}</div>
+        ${e.notes ? `<div class="notes">${esc(e.notes)}</div>` : ""}
+        <div class="card-actions">
+          <button class="secondary edit-btn">Edit</button>
+          <button class="danger delete-btn">Delete</button>
+        </div>
+        <div class="edit-form" style="display:none; margin-top:10px;">
+          <label>Name</label>
+          <input type="text" class="f-name" value="${esc(e.name)}">
+          <label>Location</label>
+          <input type="text" class="f-location" value="${esc(e.location || "")}">
+          <label>Start date (YYYY-MM-DD)</label>
+          <input type="text" class="f-start" value="${esc(e.start_date || "")}">
+          <label>End date (YYYY-MM-DD)</label>
+          <input type="text" class="f-end" value="${esc(e.end_date || "")}">
+          <label>Free or paid</label>
+          <select class="f-free">
+            <option value="" ${e.is_free == null ? "selected" : ""}>Unknown</option>
+            <option value="true" ${e.is_free === true ? "selected" : ""}>Free</option>
+            <option value="false" ${e.is_free === false ? "selected" : ""}>Paid</option>
+          </select>
+          <label>Price text</label>
+          <input type="text" class="f-price" value="${esc(e.price_text || "")}">
+          <label>Tags (comma separated)</label>
+          <input type="text" class="f-tags" value="${esc((e.tags || []).join(", "))}">
+          <label>Notes</label>
+          <textarea class="f-notes">${esc(e.notes || "")}</textarea>
+          <div class="row">
+            <button class="primary save-btn">Save</button>
+            <button class="secondary cancel-btn">Cancel</button>
+          </div>
+        </div>
+      </div>`;
+  }).join("");
+
+  cardsEl.querySelectorAll(".card").forEach((card) => {
+    const id = card.dataset.id;
+    const form = card.querySelector(".edit-form");
+    card.querySelector(".edit-btn").addEventListener("click", () => {
+      form.style.display = form.style.display === "none" ? "block" : "none";
+    });
+    card.querySelector(".cancel-btn").addEventListener("click", () => {
+      form.style.display = "none";
+    });
+    card.querySelector(".save-btn").addEventListener("click", () => saveEdit(id, card));
+    card.querySelector(".delete-btn").addEventListener("click", () => deleteEvent(id, events[id].name));
+  });
+}
+
+function getPassword() {
+  return localStorage.getItem("calendar-app-secret");
+}
+
+function promptPassword() {
+  return new Promise((resolve) => {
+    const overlay = document.getElementById("password-overlay");
+    const input = document.getElementById("password-input");
+    input.value = "";
+    overlay.style.display = "flex";
+    input.focus();
+
+    const cleanup = (value) => {
+      overlay.style.display = "none";
+      document.getElementById("password-submit").onclick = null;
+      document.getElementById("password-cancel").onclick = null;
+      resolve(value);
+    };
+    document.getElementById("password-submit").onclick = () => cleanup(input.value);
+    document.getElementById("password-cancel").onclick = () => cleanup(null);
+  });
+}
+
+async function apiCall(path, body) {
+  let secret = getPassword();
+  if (!secret) {
+    secret = await promptPassword();
+    if (!secret) throw new Error("Cancelled — no password entered.");
+    localStorage.setItem("calendar-app-secret", secret);
+  }
+
+  const res = await fetch(WORKER_URL + path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-App-Secret": secret },
+    body: JSON.stringify(body),
+  });
+
+  if (res.status === 401) {
+    localStorage.removeItem("calendar-app-secret");
+    throw new Error("Wrong password — try again.");
+  }
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+
+document.getElementById("add-submit").addEventListener("click", async () => {
+  const url = document.getElementById("add-url").value.trim();
+  if (!url) { alert("Enter a URL first."); return; }
+  const free = document.getElementById("add-free").value;
+
+  try {
+    await apiCall("/add-event", {
+      url,
+      name: document.getElementById("add-name").value.trim() || undefined,
+      tags: document.getElementById("add-tags").value,
+      notes: document.getElementById("add-notes").value,
+      is_free: free === "" ? null : free === "true",
+    });
+    document.getElementById("add-url").value = "";
+    document.getElementById("add-name").value = "";
+    document.getElementById("add-tags").value = "";
+    document.getElementById("add-notes").value = "";
+    document.getElementById("add-free").value = "";
+    await loadEvents();
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+async function saveEdit(id, card) {
+  const q = (sel) => card.querySelector(sel).value;
+  const free = q(".f-free");
+  try {
+    await apiCall("/edit-event", {
+      id,
+      name: q(".f-name"),
+      location: q(".f-location") || null,
+      start_date: q(".f-start") || null,
+      end_date: q(".f-end") || null,
+      is_free: free === "" ? null : free === "true",
+      price_text: q(".f-price") || null,
+      tags: q(".f-tags"),
+      notes: q(".f-notes"),
+    });
+    await loadEvents();
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+async function deleteEvent(id, name) {
+  if (!confirm(`Delete "${name}"?`)) return;
+  try {
+    await apiCall("/delete-event", { id });
+    await loadEvents();
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+document.getElementById("ics-url").textContent = new URL("calendar.ics", location.href).href;
+
+loadEvents();
+</script>
+</body>
+</html>
