@@ -94,6 +94,8 @@ calendar-app/
     index.html                    # dashboard
     events.json                   # the database
     calendar.ics                  # generated feed
+    manifest.json                  # lets index.html be "installed" to a home screen
+    icons/                          # 🔮 favicon/home-screen icon set, same idea as job-scraper's
   .github/workflows/
     monthly-check.yml              # the actual cron job
   INSTRUCTIONS.md
