@@ -317,7 +317,13 @@
   <div class="panel" style="max-width:320px; margin:0;">
     <h2>App password</h2>
     <p style="font-size:0.85rem; color:var(--muted);">Needed once to add/edit/delete events on this device.</p>
-    <input type="password" id="password-input" autocapitalize="off" autocorrect="off" spellcheck="false">
+    <!-- type="text" + -webkit-text-security (not type="password") deliberately -
+         Chrome ignores autocomplete="off" on real password inputs and offers to
+         save this shared app secret as a login every time, which a masked text
+         input doesn't trigger. -->
+    <input type="text" id="password-input" autocapitalize="off" autocorrect="off" spellcheck="false"
+           autocomplete="off" name="app-secret-field"
+           style="-webkit-text-security: disc; text-security: disc;">
     <div class="row">
       <button class="primary" id="password-submit">Save</button>
       <button class="secondary" id="password-cancel">Cancel</button>

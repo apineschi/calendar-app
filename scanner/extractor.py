@@ -116,10 +116,13 @@ def fetch_html_with_browser(url: str, timeout: int = 30) -> Optional[str]:
 
     Real-world limit found testing this against womad.co.uk: it returns the
     identical 403 Forbidden page to headless Chromium as it does to a plain
-    `requests` call, meaning it's fingerprinting the browser as automated
-    (a Cloudflare-style bot check), not just checking the User-Agent header.
-    This function can't help with that kind of block - it exists for sites
-    that are merely JS-rendered, not ones actively hostile to automation.
+    `requests` call - and to a bare `robots.txt` request too, which needs no
+    browser or JS execution at all to serve. That rules out fingerprinting
+    as the trigger; it's a wholesale block on the IP range this runs from
+    (GitHub Actions' and this sandbox's are both in cloud/datacenter
+    ranges), which no client-side change here can fix. See
+    fetch_html_from_archive() for the fallback that actually helps with
+    that case, by fetching from a different IP entirely.
     Returns None (never raises) on any failure, including Playwright/its
     browser binaries not being installed, since this is already the last
     resort before giving up on the page.
@@ -139,6 +142,44 @@ def fetch_html_with_browser(url: str, timeout: int = 30) -> Optional[str]:
             finally:
                 browser.close()
     except Exception:
+        return None
+
+
+def fetch_html_from_archive(url: str, timeout: int = 20) -> Optional[str]:
+    """Last-resort alternate source: the Wayback Machine's own most recent
+    crawl of the page, fetched from archive.org's infrastructure rather than
+    ours. This is the fallback that actually helps with a wholesale
+    IP-range block like womad.co.uk's (see fetch_html_with_browser()) -
+    archive.org already has a copy from a fetch that succeeded on its own
+    IPs, regardless of what's blocking this app's. The tradeoff is
+    freshness: whatever comes back is only as recent as archive.org's last
+    crawl of that page, which could be old or (for an obscure site) may not
+    exist at all. Tried only after the live page and a real browser have
+    both failed to find a date. Returns None (never raises) on any failure.
+    """
+    try:
+        avail = requests.get(
+            "https://archive.org/wayback/available",
+            params={"url": url},
+            headers={"User-Agent": DEFAULT_USER_AGENT},
+            timeout=timeout,
+        )
+        avail.raise_for_status()
+        snapshot = avail.json().get("archived_snapshots", {}).get("closest")
+        if not snapshot or not snapshot.get("available") or not snapshot.get("url"):
+            return None
+        # The plain snapshot URL replays the page with a Wayback Machine
+        # toolbar injected on top, whose "captured on ..." banner text could
+        # itself be misread as the event's date by the text heuristics.
+        # Inserting "id_" after the timestamp fetches the raw capture with
+        # no banner, per archive.org's own convention for this.
+        snapshot_url = re.sub(r"(/web/\d+)/", r"\1id_/", snapshot["url"], count=1)
+    except (requests.RequestException, ValueError, KeyError):
+        return None
+
+    try:
+        return fetch_html(snapshot_url, timeout=timeout)
+    except requests.RequestException:
         return None
 
 
@@ -434,6 +475,23 @@ def _extract_deterministic(soup: BeautifulSoup) -> dict:
     return result
 
 
+def _merge_from_html(html: Optional[str], result: dict) -> Optional[BeautifulSoup]:
+    """If html is present, run the deterministic extraction pass against it
+    and merge any fields `result` is still missing into it in place (never
+    overwriting a field another source already found). Returns the parsed
+    soup - kept around so a later Workers AI pass can use the richest page
+    fetched so far - or None if there was no html to parse.
+    """
+    if not html:
+        return None
+    soup = BeautifulSoup(html, "html.parser")
+    found = _extract_deterministic(soup)
+    for field in FIELDS:
+        if field not in result and found.get(field) is not None:
+            result[field] = found[field]
+    return soup
+
+
 def scrape_event(url: str) -> dict:
     """Best-effort extraction of {name, start_date, end_date, location, is_free,
     price_text} from an event page. Any field it can't determine is simply
@@ -441,31 +499,39 @@ def scrape_event(url: str) -> dict:
     existing stored value with a missing one. Returning {} (nothing found) is
     a normal, expected outcome for many real event sites, not an error - see
     ARCHITECTURE.md's note on the Glastonbury test case.
+
+    Three fetch attempts are tried in order, each only if the previous ones
+    haven't found a date yet: the plain page, a real headless browser (helps
+    with JS-rendered pages), then archive.org's own last crawl of the page
+    (helps with sites that wholesale block this app's IP range, which the
+    browser retry can't - see fetch_html_with_browser()'s docstring). All
+    three run the same deterministic checks; the final Workers AI pass (if
+    configured) uses whichever of them returned a page at all, preferring
+    the richest one fetched.
     """
+    result = {}
+    best_soup = None
+
     try:
-        soup = BeautifulSoup(fetch_html(url), "html.parser")
-        result = _extract_deterministic(soup)
+        html = fetch_html(url)
     except requests.RequestException:
-        soup = None
-        result = {}
+        html = None
+    soup = _merge_from_html(html, result)
+    if soup is not None:
+        best_soup = soup
 
     if not result.get("start_date"):
-        # Either the plain fetch failed outright, or it succeeded but found
-        # nothing - both cases are worth a real-browser retry, since a
-        # client-side-rendered page returns 200 with an essentially empty
-        # shell rather than an error. Whatever this finds is merged in
-        # without overwriting anything the plain fetch already got.
-        browser_html = fetch_html_with_browser(url)
-        if browser_html:
-            browser_soup = BeautifulSoup(browser_html, "html.parser")
-            browser_result = _extract_deterministic(browser_soup)
-            for field in FIELDS:
-                if field not in result and browser_result.get(field) is not None:
-                    result[field] = browser_result[field]
-            soup = browser_soup  # the richer page, worth preferring for the AI pass too
+        soup = _merge_from_html(fetch_html_with_browser(url), result)
+        if soup is not None:
+            best_soup = soup
 
-    if not result.get("start_date") and soup is not None:
-        ai_result = extract_with_workers_ai(soup)
+    if not result.get("start_date"):
+        soup = _merge_from_html(fetch_html_from_archive(url), result)
+        if soup is not None:
+            best_soup = soup
+
+    if not result.get("start_date") and best_soup is not None:
+        ai_result = extract_with_workers_ai(best_soup)
         for field in FIELDS:
             if field not in result and ai_result.get(field) is not None:
                 result[field] = ai_result[field]
