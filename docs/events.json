@@ -3,9 +3,9 @@
     "id": "lovesupremefestival-com",
     "name": "Love Supreme Jazz Festival",
     "url": "https://lovesupremefestival.com/",
-    "location": null,
-    "start_date": null,
-    "end_date": null,
+    "location": "Glynde Place, East Sussex",
+    "start_date": "2027-07-02",
+    "end_date": "2027-07-04",
     "is_free": false,
     "price_text": null,
     "tags": [
@@ -13,8 +13,8 @@
       "festival"
     ],
     "notes": "",
-    "last_known_year": null,
-    "last_checked": null,
+    "last_known_year": 2027,
+    "last_checked": "2026-08-30T08:25:14+00:00",
     "alert_sent_for_year": null,
     "calendar_uid": "lovesupremefestival-com@calendar-app.apineschi"
   },
@@ -33,7 +33,7 @@
     ],
     "notes": "",
     "last_known_year": null,
-    "last_checked": null,
+    "last_checked": "2026-08-30T08:25:15+00:00",
     "alert_sent_for_year": null,
     "calendar_uid": "empire@calendar-app.apineschi"
   }
