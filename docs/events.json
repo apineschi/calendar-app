@@ -20,7 +20,7 @@
   },
   "empire": {
     "id": "empire",
-    "name": "Empire",
+    "name": "Empire LARP",
     "url": "https://www.profounddecisions.co.uk",
     "location": null,
     "start_date": "2026-09-11",
@@ -35,7 +35,8 @@
     "last_known_year": 2026,
     "last_checked": "2026-08-30T09:12:44+00:00",
     "alert_sent_for_year": null,
-    "calendar_uid": "empire@calendar-app.apineschi"
+    "calendar_uid": "empire@calendar-app.apineschi",
+    "region": "uk"
   },
   "womad-festival": {
     "id": "womad-festival",
