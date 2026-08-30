@@ -400,6 +400,16 @@ function hopToEvent(id) {
   if (!e || !e.start_date) return;
   const d = new Date(`${e.start_date}T00:00:00`);
   calendarMonth = new Date(d.getFullYear(), d.getMonth(), 1);
+
+  // The whole point of jumping to an event is to see it, so any active
+  // filter that would otherwise hide it (a leftover search term, tag, or
+  // Free/Paid/Region filter from earlier browsing) is cleared first.
+  filterFree = null;
+  filterRegion = null;
+  activeTag = null;
+  searchQuery = "";
+  document.getElementById("search-box").value = "";
+
   render();
   requestAnimationFrame(() => {
     const cell = document.querySelector(`.cal-cell[data-date="${e.start_date}"]`);
