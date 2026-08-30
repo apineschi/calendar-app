@@ -14,7 +14,7 @@
     ],
     "notes": "",
     "last_known_year": 2027,
-    "last_checked": "2026-08-30T08:35:49+00:00",
+    "last_checked": "2026-08-30T08:55:30+00:00",
     "alert_sent_for_year": null,
     "calendar_uid": "lovesupremefestival-com@calendar-app.apineschi"
   },
@@ -23,8 +23,8 @@
     "name": "Empire",
     "url": "https://www.profounddecisions.co.uk",
     "location": null,
-    "start_date": null,
-    "end_date": null,
+    "start_date": "2026-09-11",
+    "end_date": "2026-09-13",
     "is_free": false,
     "price_text": null,
     "tags": [
@@ -32,8 +32,8 @@
       "camping"
     ],
     "notes": "",
-    "last_known_year": null,
-    "last_checked": "2026-08-30T08:35:50+00:00",
+    "last_known_year": 2026,
+    "last_checked": "2026-08-30T08:55:31+00:00",
     "alert_sent_for_year": null,
     "calendar_uid": "empire@calendar-app.apineschi"
   },
@@ -53,7 +53,7 @@
     ],
     "notes": "",
     "last_known_year": null,
-    "last_checked": null,
+    "last_checked": "2026-08-30T08:55:51+00:00",
     "alert_sent_for_year": null,
     "calendar_uid": "womad-festival@calendar-app.apineschi"
   }
