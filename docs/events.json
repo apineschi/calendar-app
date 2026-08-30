@@ -56,5 +56,25 @@
     "last_checked": "2026-08-30T08:55:51+00:00",
     "alert_sent_for_year": null,
     "calendar_uid": "womad-festival@calendar-app.apineschi"
+  },
+  "reading-festival": {
+    "id": "reading-festival",
+    "name": "Reading Festival",
+    "url": "https://www.readingfestival.com/",
+    "location": null,
+    "start_date": null,
+    "end_date": null,
+    "is_free": false,
+    "price_text": null,
+    "region": "uk",
+    "tags": [
+      "music",
+      "festival"
+    ],
+    "notes": "",
+    "last_known_year": null,
+    "last_checked": null,
+    "alert_sent_for_year": null,
+    "calendar_uid": "reading-festival@calendar-app.apineschi"
   }
 }
