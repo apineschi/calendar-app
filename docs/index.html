@@ -161,6 +161,33 @@
   .filter-label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
   .card-url { display: block; margin-top: 4px; color: inherit; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .card-url:hover { text-decoration: underline; }
+  .cal-cell.highlight { outline: 2px solid var(--accent); }
+  .accordion-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    user-select: none;
+  }
+  .accordion-header h2 { margin: 0; }
+  .accordion-arrow { color: var(--muted); transition: transform 0.15s; }
+  .accordion-arrow.open { transform: rotate(90deg); }
+  .accordion-body { margin-top: 12px; }
+  .list-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 4px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+  }
+  .list-row:last-child { border-bottom: none; }
+  .list-row:hover { background: var(--bg); }
+  .list-row-title { font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .list-row-date { font-size: 0.8rem; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+  .list-row.pending { cursor: default; }
+  .list-row.pending:hover { background: none; }
 </style>
 </head>
 <body>
@@ -238,6 +265,14 @@
 <div class="cards" id="cards"></div>
 <div class="empty" id="empty-state" style="display:none;"></div>
 
+<div class="panel">
+  <div class="accordion-header" id="all-events-header">
+    <h2>All events</h2>
+    <span class="accordion-arrow" id="all-events-arrow">▸</span>
+  </div>
+  <div class="accordion-body" id="all-events-body" style="display:none;"></div>
+</div>
+
 <div class="panel" style="margin-top:20px;">
   <h2>Subscribe to this calendar</h2>
   <p style="font-size:0.85rem; color:var(--muted); line-height:1.5;">
@@ -267,6 +302,7 @@ let activeTag = null;
 let filterFree = null; // null | true | false
 let filterRegion = null; // null | "uk" | "international"
 let searchQuery = "";
+let allEventsOpen = false;
 let calendarMonth = new Date();
 calendarMonth.setDate(1);
 
@@ -287,6 +323,11 @@ function fmtDate(iso) {
   if (!iso) return null;
   const d = new Date(`${iso}T00:00:00`);
   return d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+}
+
+function dateRangeLabel(e) {
+  if (!e.start_date) return "Date pending";
+  return fmtDate(e.start_date) + (e.end_date && e.end_date !== e.start_date ? ` – ${fmtDate(e.end_date)}` : "");
 }
 
 function esc(s) {
@@ -338,7 +379,7 @@ function renderCalendar() {
     const pills = dayEvents
       .map((e) => `<div class="cal-pill" data-id="${esc(e.id)}" title="${esc(e.name)}">${esc(e.name)}</div>`)
       .join("");
-    html += `<div class="cal-cell ${dateStr === todayStr ? "today" : ""}"><div class="cal-daynum">${d}</div>${pills}</div>`;
+    html += `<div class="cal-cell ${dateStr === todayStr ? "today" : ""}" data-date="${dateStr}"><div class="cal-daynum">${d}</div>${pills}</div>`;
   }
 
   const grid = document.getElementById("calendar-grid");
@@ -353,6 +394,54 @@ function renderCalendar() {
     });
   });
 }
+
+function hopToEvent(id) {
+  const e = events[id];
+  if (!e || !e.start_date) return;
+  const d = new Date(`${e.start_date}T00:00:00`);
+  calendarMonth = new Date(d.getFullYear(), d.getMonth(), 1);
+  render();
+  requestAnimationFrame(() => {
+    const cell = document.querySelector(`.cal-cell[data-date="${e.start_date}"]`);
+    if (!cell) return;
+    cell.scrollIntoView({ behavior: "smooth", block: "center" });
+    cell.classList.add("highlight");
+    setTimeout(() => cell.classList.remove("highlight"), 1500);
+  });
+}
+
+function renderAllEventsList() {
+  const arrow = document.getElementById("all-events-arrow");
+  const body = document.getElementById("all-events-body");
+  arrow.classList.toggle("open", allEventsOpen);
+  body.style.display = allEventsOpen ? "block" : "none";
+  if (!allEventsOpen) return;
+
+  const today = new Date();
+  const sorted = Object.values(events).sort((a, b) => {
+    if (!a.start_date && !b.start_date) return a.name.localeCompare(b.name);
+    if (!a.start_date) return 1;
+    if (!b.start_date) return -1;
+    const diffA = Math.abs(new Date(`${a.start_date}T00:00:00`) - today);
+    const diffB = Math.abs(new Date(`${b.start_date}T00:00:00`) - today);
+    return diffA - diffB;
+  });
+
+  body.innerHTML = sorted.map((e) => `
+    <div class="list-row ${e.start_date ? "" : "pending"}" data-id="${esc(e.id)}">
+      <span class="list-row-title">${esc(e.name)}</span>
+      <span class="list-row-date">${esc(dateRangeLabel(e))}</span>
+    </div>`).join("");
+
+  body.querySelectorAll(".list-row").forEach((row) => {
+    row.addEventListener("click", () => hopToEvent(row.dataset.id));
+  });
+}
+
+document.getElementById("all-events-header").addEventListener("click", () => {
+  allEventsOpen = !allEventsOpen;
+  renderAllEventsList();
+});
 
 document.getElementById("cal-prev").addEventListener("click", () => {
   calendarMonth.setMonth(calendarMonth.getMonth() - 1);
@@ -415,6 +504,7 @@ document.querySelectorAll("#pinned-region-filter .chip").forEach((chip) => {
 
 function render() {
   renderCalendar();
+  renderAllEventsList();
 
   document.querySelectorAll("#pinned-price-filter .chip").forEach((chip) => {
     chip.classList.toggle("active", filterFree === (chip.dataset.free === "true"));
@@ -459,9 +549,7 @@ function render() {
     : "No events tracked yet — add one above.";
 
   cardsEl.innerHTML = list.map((e) => {
-    const dateLabel = e.start_date
-      ? fmtDate(e.start_date) + (e.end_date && e.end_date !== e.start_date ? ` – ${fmtDate(e.end_date)}` : "")
-      : "Date pending";
+    const dateLabel = dateRangeLabel(e);
     const priceBadge = e.is_free === true
       ? '<span class="badge free">Free</span>'
       : e.is_free === false
