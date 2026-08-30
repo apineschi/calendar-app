@@ -36,5 +36,25 @@
     "last_checked": "2026-08-30T08:35:50+00:00",
     "alert_sent_for_year": null,
     "calendar_uid": "empire@calendar-app.apineschi"
+  },
+  "womad-festival": {
+    "id": "womad-festival",
+    "name": "WOMAD Festival",
+    "url": "https://womad.co.uk/",
+    "location": null,
+    "start_date": null,
+    "end_date": null,
+    "is_free": false,
+    "price_text": null,
+    "region": "uk",
+    "tags": [
+      "music",
+      "festival"
+    ],
+    "notes": "",
+    "last_known_year": null,
+    "last_checked": null,
+    "alert_sent_for_year": null,
+    "calendar_uid": "womad-festival@calendar-app.apineschi"
   }
 }
