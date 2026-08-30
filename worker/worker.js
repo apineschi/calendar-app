@@ -196,6 +196,37 @@ async function regenerateIcs(env, events) {
   await putWithRetry(env, "docs/calendar.ics", () => buildIcs(events), "Regenerate calendar.ics");
 }
 
+// Dates/locations are only ever extracted by the Python scan (main.py), not
+// here in the Worker - see the file header. Triggering it via GitHub's
+// workflow_dispatch API means adding an event actually checks it within a
+// minute or two instead of waiting for the next scheduled monthly run.
+// Requires the fine-grained PAT to also have "Actions: Read and write"
+// (Contents alone isn't enough to dispatch a workflow) - see INSTRUCTIONS.md.
+// Best-effort: failures here are logged but never fail the caller's request,
+// since the event itself was already saved successfully either way.
+async function triggerScan(env) {
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/actions/workflows/monthly-check.yml/dispatches`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+          "User-Agent": "calendar-app-worker",
+          Accept: "application/vnd.github+json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ ref: "main" }),
+      }
+    );
+    if (!res.ok) {
+      console.error(`Workflow dispatch failed: ${res.status} ${await res.text()}`);
+    }
+  } catch (err) {
+    console.error("Workflow dispatch failed:", err);
+  }
+}
+
 // Shared read-modify-write for docs/events.json, retrying the *whole* cycle
 // (including a fresh read) on a 409 rather than just the write - a stale
 // read means `mutate` may have been working off outdated data too, not just
@@ -248,7 +279,14 @@ async function handleAddEvent(request, env, origin) {
     (events, newId) => `Add event: ${events[newId].name}`
   );
 
+  await triggerScan(env);
+
   return jsonResponse({ id, event: events[id] }, 200, origin);
+}
+
+async function handleCheckNow(request, env, origin) {
+  await triggerScan(env);
+  return jsonResponse({ ok: true }, 200, origin);
 }
 
 async function handleEditEvent(request, env, origin) {
@@ -315,6 +353,7 @@ const ROUTES = {
   "/add-event": handleAddEvent,
   "/edit-event": handleEditEvent,
   "/delete-event": handleDeleteEvent,
+  "/check-now": handleCheckNow,
 };
 
 export default {

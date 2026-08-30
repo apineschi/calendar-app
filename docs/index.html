@@ -154,12 +154,22 @@
   @media (max-width: 480px) {
     .cal-cell { min-height: 44px; font-size: 0.65rem; padding: 2px; }
   }
+  #cal-title { cursor: pointer; }
+  #cal-title:hover { text-decoration: underline; }
+  .filter-row { margin-bottom: 10px; }
+  .filter-row:last-child { margin-bottom: 0; }
+  .filter-label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+  .card-url { display: block; margin-top: 4px; color: inherit; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card-url:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
 
 <h1>Calendar App</h1>
 <div class="subtitle">Recurring event tracker — add a URL, it checks monthly for next year's date.</div>
+<div class="row" style="margin-top:0; margin-bottom:20px;">
+  <button class="secondary" id="check-now-btn">Check dates now</button>
+</div>
 
 <div class="panel">
   <h2>Add an event</h2>
@@ -185,25 +195,43 @@
 <div class="panel">
   <div class="cal-header">
     <span class="cal-nav" id="cal-prev">‹</span>
-    <h2 id="cal-title"></h2>
+    <h2 id="cal-title" title="Tap to jump to a month"></h2>
     <span class="cal-nav" id="cal-next">›</span>
   </div>
+  <input type="month" id="cal-month-input" style="position:absolute; opacity:0; width:0; height:0; pointer-events:none;">
   <div class="calendar-grid" id="calendar-grid"></div>
 </div>
 
-<div class="tag-filter" id="tag-filter"></div>
+<div class="panel">
+  <h2>Filter</h2>
+  <div class="filter-row">
+    <div class="filter-label">Price</div>
+    <div class="tag-filter" id="pinned-price-filter">
+      <div class="chip" data-free="true">Free</div>
+      <div class="chip" data-free="false">Paid</div>
+    </div>
+  </div>
+  <div class="filter-row">
+    <div class="filter-label">Region</div>
+    <div class="tag-filter" id="pinned-region-filter">
+      <div class="chip" data-region="uk">UK</div>
+      <div class="chip" data-region="international">International</div>
+    </div>
+  </div>
+  <div class="filter-row">
+    <div class="filter-label">Tags</div>
+    <div class="tag-filter" id="tag-filter"></div>
+  </div>
+</div>
 
 <div class="cards" id="cards"></div>
 <div class="empty" id="empty-state" style="display:none;">No events tracked yet — add one above.</div>
 
 <div class="panel" style="margin-top:20px;">
-  <h2>Subscribe on Samsung Calendar</h2>
+  <h2>Subscribe to this calendar</h2>
   <p style="font-size:0.85rem; color:var(--muted); line-height:1.5;">
     One-time setup: open Google Calendar → <strong>Other calendars</strong> → <strong>+</strong>
-    → <strong>From URL</strong>, and paste this feed link. Samsung Calendar automatically
-    mirrors any Google account calendars, so it'll show up there too — toggle it on/off from
-    either app's calendar list whenever you like. Updates happen roughly monthly (whenever
-    the scan runs), so Google's own refresh delay for subscribed feeds doesn't matter here.
+    → <strong>From URL</strong>, and paste this feed link.
   </p>
   <code id="ics-url"></code>
 </div>
@@ -225,6 +253,8 @@ const WORKER_URL = "https://calendar-app.anastasia-pineschi.workers.dev";
 
 let events = {};
 let activeTag = null;
+let filterFree = null; // null | true | false
+let filterRegion = null; // null | "uk" | "international"
 let calendarMonth = new Date();
 calendarMonth.setDate(1);
 
@@ -308,10 +338,59 @@ document.getElementById("cal-next").addEventListener("click", () => {
   renderCalendar();
 });
 
+document.getElementById("cal-title").addEventListener("click", () => {
+  const input = document.getElementById("cal-month-input");
+  const y = calendarMonth.getFullYear();
+  const m = String(calendarMonth.getMonth() + 1).padStart(2, "0");
+  input.value = `${y}-${m}`;
+  if (input.showPicker) input.showPicker();
+  else input.focus();
+});
+document.getElementById("cal-month-input").addEventListener("change", (e) => {
+  const [y, m] = e.target.value.split("-").map(Number);
+  if (y && m) {
+    calendarMonth = new Date(y, m - 1, 1);
+    renderCalendar();
+  }
+});
+
+document.getElementById("check-now-btn").addEventListener("click", async () => {
+  try {
+    await apiCall("/check-now", {});
+    alert("Check started — refresh in a minute or two to see updates.");
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+document.querySelectorAll("#pinned-price-filter .chip").forEach((chip) => {
+  chip.addEventListener("click", () => {
+    const val = chip.dataset.free === "true";
+    filterFree = filterFree === val ? null : val;
+    render();
+  });
+});
+document.querySelectorAll("#pinned-region-filter .chip").forEach((chip) => {
+  chip.addEventListener("click", () => {
+    const val = chip.dataset.region;
+    filterRegion = filterRegion === val ? null : val;
+    render();
+  });
+});
+
 function render() {
   renderCalendar();
+
+  document.querySelectorAll("#pinned-price-filter .chip").forEach((chip) => {
+    chip.classList.toggle("active", filterFree === (chip.dataset.free === "true"));
+  });
+  document.querySelectorAll("#pinned-region-filter .chip").forEach((chip) => {
+    chip.classList.toggle("active", filterRegion === chip.dataset.region);
+  });
+
   const filterEl = document.getElementById("tag-filter");
-  filterEl.innerHTML = allTags()
+  const otherTags = allTags().filter((t) => t !== "uk" && t !== "international");
+  filterEl.innerHTML = otherTags
     .map((t) => `<div class="chip ${t === activeTag ? "active" : ""}" data-tag="${esc(t)}">${esc(t)}</div>`)
     .join("");
   filterEl.querySelectorAll(".chip").forEach((chip) => {
@@ -322,6 +401,8 @@ function render() {
   });
 
   const list = Object.values(events)
+    .filter((e) => filterFree === null || e.is_free === filterFree)
+    .filter((e) => filterRegion === null || (e.tags || []).includes(filterRegion))
     .filter((e) => !activeTag || (e.tags || []).includes(activeTag))
     .sort((a, b) => (a.start_date || "9999").localeCompare(b.start_date || "9999"));
 
@@ -344,6 +425,7 @@ function render() {
         <div class="meta">
           ${dateLabel}<br>
           ${e.location ? esc(e.location) : "Location unknown"}
+          <a class="card-url" href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.url)}</a>
         </div>
         <div style="margin-top:8px;">${priceBadge}</div>
         <div class="tags">${(e.tags || []).map((t) => `<span>${esc(t)}</span>`).join("")}</div>

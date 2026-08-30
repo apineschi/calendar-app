@@ -22,7 +22,10 @@ for how the pieces fit together.
    **Generate new token**.
 2. **Repository access**: "Only select repositories" > `calendar-app`.
 3. **Permissions**: **Repository permissions** > **Contents** > **Read and
-   write**. Leave everything else at no access.
+   write**, and also **Actions** > **Read and write** (this second one lets
+   the Worker kick off an immediate date/location check right after you add
+   an event, instead of waiting for the monthly schedule). Leave everything
+   else at no access.
 4. Generate, copy the token for step 3.
 
 ### 3. Pick an app password
@@ -111,13 +114,17 @@ Open `https://apineschi.github.io/calendar-app/` (worth adding to your
 phone's home screen), paste the event's URL into the "Add an event" box,
 optionally fill in a name/tags/notes/free-or-paid, and click **Add event**.
 It'll ask for your app password the first time and remember it after that.
-The date shows as "pending" until the next check.
+Adding an event automatically kicks off a check for its date/location in the
+background (takes a minute or two) — the date shows as "pending" until that
+finishes, so just refresh the dashboard shortly after.
 
-### Check a newly-added event's date right away
+### Check dates again right away (e.g. after fixing a URL)
 
-Rather than waiting for the monthly schedule: on GitHub, go to the
-`calendar-app` repo > **Actions** tab > **Monthly Event Check** > **Run
-workflow**. Takes a minute or two; refresh the dashboard afterward.
+Click **Check dates now** at the top of the dashboard — this re-checks every
+tracked event's URL immediately rather than waiting for the monthly
+schedule. Takes a minute or two; refresh the dashboard afterward. (This is
+also always available directly from GitHub: `calendar-app` repo > **Actions**
+tab > **Monthly Event Check** > **Run workflow**.)
 
 ### Edit tags, notes, or fix a wrong field
 

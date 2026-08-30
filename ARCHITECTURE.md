@@ -156,17 +156,42 @@ sites rather than a fixed list of institutions):
    being wrapped in a list or `@graph`.
 2. **Open Graph tags** — `og:title` only, for the name. Not trusted for
    dates.
-3. **Text heuristics** — regex scan for month-name + plausible-year
-   snippets, parsed with `dateutil`, picking the earliest future-dated
-   candidate. This is the same "best-effort, can be wrong, gets corrected or
-   left blank next time" spirit as `parse_closing_date()` in
-   `job-scraper/scrapers/base.py`.
+3. **Text heuristics** — regex scan for date-shaped snippets, parsed with
+   `dateutil`. Two real bugs turned up testing this against
+   `lovesupremefestival.com` (no JSON-LD, prose only), both fixed and worth
+   knowing about if extraction ever looks wrong on a new site:
+   - A day *range* like "2-4 July 2027" was silently mis-parsed as "4 July
+     2027" - the single-day pattern only ever captured a lone day
+     immediately before the month name, dropping the real start day
+     entirely. `extract_date_range_from_text()` (tried first, before the
+     single-day fallback) handles `D1-D2 Month Year` explicitly and returns
+     both `start_date` and `end_date`.
+   - A ticket-sale deadline ("Early Bird Tickets Only until 7th August
+     2026") was confidently returned as the event's date. `TICKET_CONTEXT_RE`
+     now skips any date-shaped snippet with ticket/sale/deadline language in
+     the ~80 characters before it.
+   - `_guess_location_after()` is a light-touch bonus: on pages where the
+     venue sits right after the date in the flattened text (as on the same
+     Love Supreme page: "2-4 July 2027 Glynde Place, East Sussex"), it's
+     captured as a location guess, cut off at the first digit or
+     site-chrome-looking word (nav labels, section headings). Wrong guesses
+     just get corrected via the dashboard's edit form, same as any other
+     best-effort field.
 4. **Cloudflare Workers AI** (optional, free-tier only) — only tried if 1-3
    all found no date; asks a free model to read the page's own text and
    extract the same fields as structured JSON.
 5. Anything still missing is left absent from the returned dict. This is the
    expected, common outcome (see the Glastonbury test above) — not a bug to
    fix, and exactly what `scanner/alerts.py` exists to handle.
+
+Adding an event via the dashboard triggers an immediate check rather than
+waiting for the monthly schedule: the Worker's `/add-event` (and a standalone
+`/check-now`, for rechecking everything on demand - e.g. after fixing a
+mistyped URL) call GitHub's `workflow_dispatch` API to kick off
+`monthly-check.yml` right away. This needs the fine-grained PAT to also have
+**Actions: Read and write**, not just Contents (see INSTRUCTIONS.md) - without
+it, the dispatch call fails silently (logged, but never blocks the event
+itself from saving) and the event just waits for the next scheduled run.
 
 ## The "can't find next date" alert (`scanner/alerts.py`)
 

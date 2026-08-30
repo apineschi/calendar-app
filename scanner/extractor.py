@@ -1,7 +1,7 @@
 import json
 import os
 import re
-from datetime import datetime, timezone
+from datetime import date as date_cls, datetime, timezone
 from typing import Optional
 
 import requests
@@ -25,6 +25,32 @@ DATE_SNIPPET_RE = re.compile(
     r"\b(?:\d{1,2}(?:st|nd|rd|th)?\s+)?"
     r"(?:January|February|March|April|May|June|July|August|September|October|November|December)"
     r"[a-z]*\s*(?:\d{1,2}(?:st|nd|rd|th)?[-–—]?\s*)?(?:\d{1,2}(?:st|nd|rd|th)?)?,?\s*(20\d{2})\b",
+    re.IGNORECASE,
+)
+
+DATE_CONTEXT_WINDOW = 80
+TICKET_CONTEXT_RE = re.compile(
+    r"ticket|early\s*bird|on\s*sale|sold\s*out|deadline|book\s*by|last\s*chance|closing\s*date|expires",
+    re.IGNORECASE,
+)
+
+MONTH_NAMES = (
+    "january", "february", "march", "april", "may", "june",
+    "july", "august", "september", "october", "november", "december",
+)
+
+# A "D1-D2 Month Year" span - e.g. "2-4 July 2027" - is the common way
+# multi-day festivals state their dates. DATE_SNIPPET_RE alone mis-parses
+# this: its single-optional-leading-day group only matches a lone day
+# immediately before the month, so "2-4 July 2027" was actually matching
+# just "4 July 2027" and silently dropping the real start day (confirmed
+# against the real lovesupremefestival.com page, which reports 2-4 July
+# 2027 but was being stored as July 4th only). This pattern is tried first,
+# specifically to capture both ends of the range correctly.
+DATE_RANGE_RE = re.compile(
+    r"\b(\d{1,2})(?:st|nd|rd|th)?\s*(?:-|–|—|to)\s*(\d{1,2})(?:st|nd|rd|th)?\s+"
+    r"(January|February|March|April|May|June|July|August|September|October|November|December)"
+    r"[a-z]*\s+(20\d{2})\b",
     re.IGNORECASE,
 )
 
@@ -143,18 +169,99 @@ def extract_from_opengraph(soup: BeautifulSoup) -> dict:
     return {"name": title} if title else {}
 
 
+LOCATION_STOP_WORDS_RE = re.compile(
+    r"\b(previous|line-?up|tickets?|book|home|about|news|menu|faq|shop|"
+    r"gallery|contact|sign\s*up|subscribe|wellness|families|restaurant)\b",
+    re.IGNORECASE,
+)
+
+
+def _guess_location_after(text: str, end_pos: int) -> Optional[str]:
+    """Best-effort only: on many event pages the venue name sits right after
+    the date (as on lovesupremefestival.com: "2-4 July 2027 Glynde Place,
+    East Sussex"), with no punctuation separating them from the next section
+    of the page once get_text() collapses all whitespace to single spaces.
+    Cuts at the first digit or word that looks like unrelated site chrome
+    (nav links, section headings) rather than part of a place name - a wrong
+    guess just gets left as-is or corrected via the dashboard's edit form,
+    same as any other best-effort field here.
+    """
+    snippet = text[end_pos:end_pos + 80]
+    stop_match = LOCATION_STOP_WORDS_RE.search(snippet)
+    if stop_match:
+        snippet = snippet[:stop_match.start()]
+    digit_match = re.search(r"\d", snippet)
+    if digit_match:
+        snippet = snippet[:digit_match.start()]
+    snippet = snippet.strip(" ,.-")
+    return snippet if 3 <= len(snippet) <= 80 else None
+
+
+def extract_date_range_from_text(soup: BeautifulSoup) -> dict:
+    text = soup.get_text(" ", strip=True)
+    now_year = datetime.now(timezone.utc).year
+    candidates = []
+    for match in DATE_RANGE_RE.finditer(text):
+        day1, day2, month_name, year_str = match.groups()
+        year = int(year_str)
+        if not (now_year <= year <= now_year + 3):
+            continue
+        context = text[max(0, match.start() - DATE_CONTEXT_WINDOW):match.end()]
+        if TICKET_CONTEXT_RE.search(context):
+            continue
+        try:
+            month = MONTH_NAMES.index(month_name.lower()) + 1
+            start = date_cls(year, month, int(day1))
+            end = date_cls(year, month, int(day2))
+        except ValueError:
+            continue
+        if end < start:
+            continue
+        candidates.append((start, end, match.end()))
+
+    if not candidates:
+        return {}
+    candidates.sort(key=lambda c: (c[0], c[1]))
+    start, end, match_end = candidates[0]
+    result = {"start_date": start.isoformat(), "end_date": end.isoformat()}
+    location = _guess_location_after(text, match_end)
+    if location:
+        result["location"] = location
+    return result
+
+
 def extract_date_from_text(soup: BeautifulSoup) -> dict:
+    """A real test against lovesupremefestival.com found this heuristic
+    confidently picking up "Early Bird Tickets Only until 7th August 2026" -
+    a ticket-sale deadline, not the festival's actual date. Nearby ticket/
+    sale language is common on event sites and easy to mistake for the event
+    date itself, so any date-shaped snippet close to one of those words is
+    skipped rather than trusted.
+
+    The same real page also demonstrated why a day *range* ("2-4 July 2027")
+    needs its own pass first (extract_date_range_from_text): the plain
+    single-day pattern below would only ever catch the trailing day of a
+    range, silently dropping the real start date.
+    """
+    range_result = extract_date_range_from_text(soup)
+    if range_result:
+        return range_result
+
     text = soup.get_text(" ", strip=True)
     now_year = datetime.now(timezone.utc).year
     candidates = []
     for match in DATE_SNIPPET_RE.finditer(text):
         year = int(match.group(1))
-        if now_year <= year <= now_year + 3:
-            try:
-                parsed = dateutil_parser.parse(match.group(0), fuzzy=True, dayfirst=True).date()
-                candidates.append(parsed)
-            except (ValueError, OverflowError, TypeError):
-                continue
+        if not (now_year <= year <= now_year + 3):
+            continue
+        context = text[max(0, match.start() - DATE_CONTEXT_WINDOW):match.end()]
+        if TICKET_CONTEXT_RE.search(context):
+            continue
+        try:
+            parsed = dateutil_parser.parse(match.group(0), fuzzy=True, dayfirst=True).date()
+            candidates.append(parsed)
+        except (ValueError, OverflowError, TypeError):
+            continue
     if not candidates:
         return {}
     candidates.sort()
