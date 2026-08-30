@@ -114,6 +114,7 @@ calendar-app/
   "end_date": "2027-06-27",
   "is_free": false,
   "price_text": "£375 + booking fee",
+  "region": "uk",
   "tags": ["music", "festival"],
   "notes": "Try the October resale window if the main sale sells out.",
   "last_known_year": 2025,
@@ -139,8 +140,13 @@ calendar-app/
   updates the existing entry in Google Calendar rather than creating a
   duplicate on its next poll.
 - Tags are free-text, entered on the dashboard — kept separate from
-  `is_free`/`price_text` since those were asked for as their own fields, not
-  as part of the type-of-event tagging.
+  `is_free`/`price_text`/`region` since those were asked for as their own
+  always-available filter categories, not as part of the freeform
+  type-of-event tagging. `region` (`"uk"` | `"international"` | `null`) is
+  its own dedicated field with a real dropdown in the add/edit forms, same
+  as `is_free` — an earlier version tried representing it as a plain tag
+  (typing "uk" into the tags box) instead, which meant nothing ever actually
+  set it and the UK/International filter silently matched nothing.
 
 ## Event extraction (`scanner/extractor.py`)
 

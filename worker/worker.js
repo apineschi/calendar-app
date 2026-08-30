@@ -248,8 +248,13 @@ async function withEventsUpdate(env, mutate, messageFn, attempts = 3) {
   }
 }
 
+const VALID_REGIONS = ["uk", "international"];
+function normalizeRegion(value) {
+  return VALID_REGIONS.includes(value) ? value : null;
+}
+
 async function handleAddEvent(request, env, origin) {
-  const { url, name, tags, notes, is_free } = await request.json();
+  const { url, name, tags, notes, is_free, region } = await request.json();
   if (typeof url !== "string" || !url) {
     return jsonResponse({ error: "Missing url" }, 400, origin);
   }
@@ -267,6 +272,7 @@ async function handleAddEvent(request, env, origin) {
         end_date: null,
         is_free: typeof is_free === "boolean" ? is_free : null,
         price_text: null,
+        region: normalizeRegion(region),
         tags: normalizeTags(tags),
         notes: notes || "",
         last_known_year: null,
@@ -307,6 +313,7 @@ async function handleEditEvent(request, env, origin) {
         for (const field of editable) {
           if (field in body) events[id][field] = body[field];
         }
+        if ("region" in body) events[id].region = normalizeRegion(body.region);
         if ("tags" in body) events[id].tags = normalizeTags(body.tags);
 
         // A manually-entered/corrected date should count as a confirmed

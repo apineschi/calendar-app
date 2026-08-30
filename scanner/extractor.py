@@ -18,14 +18,47 @@ DEFAULT_USER_AGENT = (
 # sites anyway, so it's matched too.
 EVENT_TYPE_MARKERS = ("Event", "Festival")
 
-# A date-shaped snippet: a month name plus a year within a plausible window -
-# used to scan free-text prose once structured data isn't available (the
-# common case - see ARCHITECTURE.md).
+# Month names AND common abbreviations - a real test against
+# profounddecisions.co.uk ("Autumn Equinox - 11th Sep to 13th Sep 2026")
+# found genuinely-present dates going completely undetected because the site
+# uses 3-letter abbreviations, which none of the regexes below originally
+# matched at all (they only recognized full month names). Matching is done
+# by capturing any word-like token and resolving it through this lookup,
+# rather than baking every spelling into each regex's alternation.
+MONTH_LOOKUP = {
+    "jan": 1, "january": 1,
+    "feb": 2, "february": 2,
+    "mar": 3, "march": 3,
+    "apr": 4, "april": 4,
+    "may": 5,
+    "jun": 6, "june": 6,
+    "jul": 7, "july": 7,
+    "aug": 8, "august": 8,
+    "sep": 9, "sept": 9, "september": 9,
+    "oct": 10, "october": 10,
+    "nov": 11, "november": 11,
+    "dec": 12, "december": 12,
+}
+
+
+def _parse_month(word: str) -> Optional[int]:
+    return MONTH_LOOKUP.get(word.strip(". ").lower())
+
+
+# A single day + ordinal suffix, tolerant of a stray space between them
+# (e.g. "11 th") - the profounddecisions.co.uk page renders ordinal suffixes
+# in a <sup> tag, which BeautifulSoup's get_text(" ", ...) then separates
+# from its digit with a space, breaking a naive "\d{1,2}(?:st|nd|rd|th)?"
+# pattern that assumes no gap.
+_DAY_RE = r"\d{1,2}\s*(?:st|nd|rd|th)?"
+_MONTH_WORD_RE = r"[A-Za-z]{3,9}\.?"
+
+# A date-shaped snippet: a month name/abbreviation plus a year within a
+# plausible window - used to scan free-text prose once structured data isn't
+# available (the common case - see ARCHITECTURE.md).
 DATE_SNIPPET_RE = re.compile(
-    r"\b(?:\d{1,2}(?:st|nd|rd|th)?\s+)?"
-    r"(?:January|February|March|April|May|June|July|August|September|October|November|December)"
-    r"[a-z]*\s*(?:\d{1,2}(?:st|nd|rd|th)?[-–—]?\s*)?(?:\d{1,2}(?:st|nd|rd|th)?)?,?\s*(20\d{2})\b",
-    re.IGNORECASE,
+    rf"\b(?:{_DAY_RE}\s+)?({_MONTH_WORD_RE})\s*"
+    rf"(?:{_DAY_RE}[-–—]?\s*)?(?:{_DAY_RE})?,?\s*(20\d{{2}})\b"
 )
 
 DATE_CONTEXT_WINDOW = 80
@@ -34,25 +67,24 @@ TICKET_CONTEXT_RE = re.compile(
     re.IGNORECASE,
 )
 
-MONTH_NAMES = (
-    "january", "february", "march", "april", "may", "june",
-    "july", "august", "september", "october", "november", "december",
+# Two distinct multi-day range phrasings turned up from real sites, each
+# missed entirely by the other: "2-4 July 2027" (lovesupremefestival.com,
+# one shared month) versus "11th Sep to 13th Sep 2026"
+# (profounddecisions.co.uk, the month repeated with each day). Both are
+# tried; RANGE_DIFF_MONTH_RE also tolerates the two days naming different
+# months (a range spanning a month boundary), so long as they land in the
+# same year - see extract_date_range_from_text for that guard.
+RANGE_SAME_MONTH_RE = re.compile(
+    rf"\b({_DAY_RE})\s*(?:-|–|—|to)\s*({_DAY_RE})\s+({_MONTH_WORD_RE})\s+(20\d{{2}})\b"
+)
+RANGE_DIFF_MONTH_RE = re.compile(
+    rf"\b({_DAY_RE})\s+({_MONTH_WORD_RE})\s+to\s+({_DAY_RE})\s+({_MONTH_WORD_RE})\s+(20\d{{2}})\b"
 )
 
-# A "D1-D2 Month Year" span - e.g. "2-4 July 2027" - is the common way
-# multi-day festivals state their dates. DATE_SNIPPET_RE alone mis-parses
-# this: its single-optional-leading-day group only matches a lone day
-# immediately before the month, so "2-4 July 2027" was actually matching
-# just "4 July 2027" and silently dropping the real start day (confirmed
-# against the real lovesupremefestival.com page, which reports 2-4 July
-# 2027 but was being stored as July 4th only). This pattern is tried first,
-# specifically to capture both ends of the range correctly.
-DATE_RANGE_RE = re.compile(
-    r"\b(\d{1,2})(?:st|nd|rd|th)?\s*(?:-|–|—|to)\s*(\d{1,2})(?:st|nd|rd|th)?\s+"
-    r"(January|February|March|April|May|June|July|August|September|October|November|December)"
-    r"[a-z]*\s+(20\d{2})\b",
-    re.IGNORECASE,
-)
+
+def _leading_int(text: str) -> Optional[int]:
+    match = re.match(r"\d{1,2}", text)
+    return int(match.group(0)) if match else None
 
 WORKERS_AI_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
 
@@ -197,27 +229,55 @@ def _guess_location_after(text: str, end_pos: int) -> Optional[str]:
     return snippet if 3 <= len(snippet) <= 80 else None
 
 
-def extract_date_range_from_text(soup: BeautifulSoup) -> dict:
-    text = soup.get_text(" ", strip=True)
+def _in_range_year(year: int) -> bool:
     now_year = datetime.now(timezone.utc).year
-    candidates = []
-    for match in DATE_RANGE_RE.finditer(text):
-        day1, day2, month_name, year_str = match.groups()
+    return now_year <= year <= now_year + 3
+
+
+def _ticket_context(text: str, start: int, end: int) -> bool:
+    context = text[max(0, start - DATE_CONTEXT_WINDOW):end]
+    return bool(TICKET_CONTEXT_RE.search(context))
+
+
+def _range_candidates_same_month(text: str):
+    for match in RANGE_SAME_MONTH_RE.finditer(text):
+        day1_text, day2_text, month_word, year_str = match.groups()
         year = int(year_str)
-        if not (now_year <= year <= now_year + 3):
+        month = _parse_month(month_word)
+        if month is None or not _in_range_year(year) or _ticket_context(text, match.start(), match.end()):
             continue
-        context = text[max(0, match.start() - DATE_CONTEXT_WINDOW):match.end()]
-        if TICKET_CONTEXT_RE.search(context):
-            continue
+        day1, day2 = _leading_int(day1_text), _leading_int(day2_text)
         try:
-            month = MONTH_NAMES.index(month_name.lower()) + 1
-            start = date_cls(year, month, int(day1))
-            end = date_cls(year, month, int(day2))
-        except ValueError:
+            start = date_cls(year, month, day1)
+            end = date_cls(year, month, day2)
+        except (ValueError, TypeError):
             continue
         if end < start:
             continue
-        candidates.append((start, end, match.end()))
+        yield start, end, match.end()
+
+
+def _range_candidates_diff_month(text: str):
+    for match in RANGE_DIFF_MONTH_RE.finditer(text):
+        day1_text, month1_word, day2_text, month2_word, year_str = match.groups()
+        year = int(year_str)
+        month1, month2 = _parse_month(month1_word), _parse_month(month2_word)
+        if None in (month1, month2) or not _in_range_year(year) or _ticket_context(text, match.start(), match.end()):
+            continue
+        day1, day2 = _leading_int(day1_text), _leading_int(day2_text)
+        try:
+            start = date_cls(year, month1, day1)
+            end = date_cls(year, month2, day2)
+        except (ValueError, TypeError):
+            continue
+        if end < start:
+            continue
+        yield start, end, match.end()
+
+
+def extract_date_range_from_text(soup: BeautifulSoup) -> dict:
+    text = soup.get_text(" ", strip=True)
+    candidates = list(_range_candidates_same_month(text)) + list(_range_candidates_diff_month(text))
 
     if not candidates:
         return {}
@@ -241,21 +301,24 @@ def extract_date_from_text(soup: BeautifulSoup) -> dict:
     The same real page also demonstrated why a day *range* ("2-4 July 2027")
     needs its own pass first (extract_date_range_from_text): the plain
     single-day pattern below would only ever catch the trailing day of a
-    range, silently dropping the real start date.
+    range, silently dropping the real start date. A second real site
+    (profounddecisions.co.uk, "11th Sep to 13th Sep 2026") showed a second
+    range phrasing exists too (month repeated per day, not shared) - both are
+    tried in extract_date_range_from_text before falling back to this
+    single-day scan.
     """
     range_result = extract_date_range_from_text(soup)
     if range_result:
         return range_result
 
     text = soup.get_text(" ", strip=True)
-    now_year = datetime.now(timezone.utc).year
     candidates = []
     for match in DATE_SNIPPET_RE.finditer(text):
-        year = int(match.group(1))
-        if not (now_year <= year <= now_year + 3):
+        month_word, year_str = match.groups()
+        year = int(year_str)
+        if _parse_month(month_word) is None or not _in_range_year(year):
             continue
-        context = text[max(0, match.start() - DATE_CONTEXT_WINDOW):match.end()]
-        if TICKET_CONTEXT_RE.search(context):
+        if _ticket_context(text, match.start(), match.end()):
             continue
         try:
             parsed = dateutil_parser.parse(match.group(0), fuzzy=True, dayfirst=True).date()

@@ -187,6 +187,12 @@
     <option value="true">Free</option>
     <option value="false">Paid</option>
   </select>
+  <label for="add-region">Region</label>
+  <select id="add-region">
+    <option value="">Unknown yet</option>
+    <option value="uk">UK</option>
+    <option value="international">International</option>
+  </select>
   <div class="row">
     <button class="primary" id="add-submit">Add event</button>
   </div>
@@ -199,11 +205,15 @@
     <span class="cal-nav" id="cal-next">›</span>
   </div>
   <input type="month" id="cal-month-input" style="position:absolute; opacity:0; width:0; height:0; pointer-events:none;">
+  <div class="row" style="justify-content:center; margin-top:0; margin-bottom:12px;">
+    <button class="secondary" id="cal-today-btn">Today</button>
+  </div>
   <div class="calendar-grid" id="calendar-grid"></div>
 </div>
 
 <div class="panel">
   <h2>Filter</h2>
+  <input type="text" id="search-box" placeholder="Search name, location, notes, tags…" style="margin-bottom:14px;">
   <div class="filter-row">
     <div class="filter-label">Price</div>
     <div class="tag-filter" id="pinned-price-filter">
@@ -224,8 +234,9 @@
   </div>
 </div>
 
+<div class="filter-label" id="cards-month-label" style="margin: 0 0 8px 4px;"></div>
 <div class="cards" id="cards"></div>
-<div class="empty" id="empty-state" style="display:none;">No events tracked yet — add one above.</div>
+<div class="empty" id="empty-state" style="display:none;"></div>
 
 <div class="panel" style="margin-top:20px;">
   <h2>Subscribe to this calendar</h2>
@@ -255,8 +266,22 @@ let events = {};
 let activeTag = null;
 let filterFree = null; // null | true | false
 let filterRegion = null; // null | "uk" | "international"
+let searchQuery = "";
 let calendarMonth = new Date();
 calendarMonth.setDate(1);
+
+// The card list is scoped to whatever month the calendar above is showing.
+// Events with no start_date yet ("pending") don't belong to any month, so
+// they're kept visible regardless — otherwise a newly-added event with no
+// date yet would vanish from the list entirely until it's found.
+function eventOverlapsMonth(e, year, month) {
+  if (!e.start_date) return true;
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  const monthStart = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+  const monthEnd = `${year}-${String(month + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+  const end = e.end_date || e.start_date;
+  return e.start_date <= monthEnd && end >= monthStart;
+}
 
 function fmtDate(iso) {
   if (!iso) return null;
@@ -331,11 +356,16 @@ function renderCalendar() {
 
 document.getElementById("cal-prev").addEventListener("click", () => {
   calendarMonth.setMonth(calendarMonth.getMonth() - 1);
-  renderCalendar();
+  render();
 });
 document.getElementById("cal-next").addEventListener("click", () => {
   calendarMonth.setMonth(calendarMonth.getMonth() + 1);
-  renderCalendar();
+  render();
+});
+document.getElementById("cal-today-btn").addEventListener("click", () => {
+  calendarMonth = new Date();
+  calendarMonth.setDate(1);
+  render();
 });
 
 document.getElementById("cal-title").addEventListener("click", () => {
@@ -350,8 +380,13 @@ document.getElementById("cal-month-input").addEventListener("change", (e) => {
   const [y, m] = e.target.value.split("-").map(Number);
   if (y && m) {
     calendarMonth = new Date(y, m - 1, 1);
-    renderCalendar();
+    render();
   }
+});
+
+document.getElementById("search-box").addEventListener("input", (e) => {
+  searchQuery = e.target.value.trim().toLowerCase();
+  render();
 });
 
 document.getElementById("check-now-btn").addEventListener("click", async () => {
@@ -400,14 +435,28 @@ function render() {
     });
   });
 
-  const list = Object.values(events)
+  const allEvents = Object.values(events);
+  const list = allEvents
+    .filter((e) => eventOverlapsMonth(e, calendarMonth.getFullYear(), calendarMonth.getMonth()))
     .filter((e) => filterFree === null || e.is_free === filterFree)
-    .filter((e) => filterRegion === null || (e.tags || []).includes(filterRegion))
+    .filter((e) => filterRegion === null || e.region === filterRegion)
     .filter((e) => !activeTag || (e.tags || []).includes(activeTag))
+    .filter((e) => {
+      if (!searchQuery) return true;
+      const haystack = [e.name, e.location, e.notes, ...(e.tags || [])].filter(Boolean).join(" ").toLowerCase();
+      return haystack.includes(searchQuery);
+    })
     .sort((a, b) => (a.start_date || "9999").localeCompare(b.start_date || "9999"));
 
+  document.getElementById("cards-month-label").textContent =
+    `Events in ${calendarMonth.toLocaleDateString(undefined, { year: "numeric", month: "long" })}`;
+
   const cardsEl = document.getElementById("cards");
-  document.getElementById("empty-state").style.display = list.length ? "none" : "block";
+  const emptyEl = document.getElementById("empty-state");
+  emptyEl.style.display = list.length ? "none" : "block";
+  emptyEl.textContent = allEvents.length
+    ? "No events match this month/filter."
+    : "No events tracked yet — add one above.";
 
   cardsEl.innerHTML = list.map((e) => {
     const dateLabel = e.start_date
@@ -427,7 +476,10 @@ function render() {
           ${e.location ? esc(e.location) : "Location unknown"}
           <a class="card-url" href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.url)}</a>
         </div>
-        <div style="margin-top:8px;">${priceBadge}</div>
+        <div style="margin-top:8px;">
+          ${priceBadge}
+          ${e.region ? `<span class="badge pending">${e.region === "uk" ? "UK" : "International"}</span>` : ""}
+        </div>
         <div class="tags">${(e.tags || []).map((t) => `<span>${esc(t)}</span>`).join("")}</div>
         ${e.notes ? `<div class="notes">${esc(e.notes)}</div>` : ""}
         <div class="card-actions">
@@ -448,6 +500,12 @@ function render() {
             <option value="" ${e.is_free == null ? "selected" : ""}>Unknown</option>
             <option value="true" ${e.is_free === true ? "selected" : ""}>Free</option>
             <option value="false" ${e.is_free === false ? "selected" : ""}>Paid</option>
+          </select>
+          <label>Region</label>
+          <select class="f-region">
+            <option value="" ${!e.region ? "selected" : ""}>Unknown</option>
+            <option value="uk" ${e.region === "uk" ? "selected" : ""}>UK</option>
+            <option value="international" ${e.region === "international" ? "selected" : ""}>International</option>
           </select>
           <label>Price text</label>
           <input type="text" class="f-price" value="${esc(e.price_text || "")}">
@@ -535,12 +593,14 @@ document.getElementById("add-submit").addEventListener("click", async () => {
       tags: document.getElementById("add-tags").value,
       notes: document.getElementById("add-notes").value,
       is_free: free === "" ? null : free === "true",
+      region: document.getElementById("add-region").value || null,
     });
     document.getElementById("add-url").value = "";
     document.getElementById("add-name").value = "";
     document.getElementById("add-tags").value = "";
     document.getElementById("add-notes").value = "";
     document.getElementById("add-free").value = "";
+    document.getElementById("add-region").value = "";
     await loadEvents();
   } catch (err) {
     alert(err.message);
@@ -558,6 +618,7 @@ async function saveEdit(id, card) {
       start_date: q(".f-start") || null,
       end_date: q(".f-end") || null,
       is_free: free === "" ? null : free === "true",
+      region: q(".f-region") || null,
       price_text: q(".f-price") || null,
       tags: q(".f-tags"),
       notes: q(".f-notes"),
