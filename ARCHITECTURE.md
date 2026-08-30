@@ -183,10 +183,27 @@ sites rather than a fixed list of institutions):
      site-chrome-looking word (nav labels, section headings). Wrong guesses
      just get corrected via the dashboard's edit form, same as any other
      best-effort field.
-4. **Cloudflare Workers AI** (optional, free-tier only) — only tried if 1-3
-   all found no date; asks a free model to read the page's own text and
-   extract the same fields as structured JSON.
-5. Anything still missing is left absent from the returned dict. This is the
+4. **Headless browser retry** (`fetch_html_with_browser()`, Playwright +
+   Chromium) — tried whenever the plain fetch either failed outright or
+   succeeded but found no date, covering both "the site blocks non-browser
+   requests" and "the site is a client-side-rendered shell with nothing in
+   the raw HTML." Whatever it finds is merged in through the same
+   `_extract_deterministic()` pass (steps 1-3 again, against the
+   browser-rendered HTML this time) rather than a separate code path.
+   **Real limit found testing this against `womad.co.uk`**: it returns the
+   *identical* 403 Forbidden page to headless Chromium as to a plain
+   `requests` call - meaning it's fingerprinting the browser as automated
+   (Cloudflare-style bot detection), not just checking the User-Agent
+   header. Playwright genuinely helps for sites that are merely
+   JS-rendered; it can't be expected to get past a site actively hostile to
+   automation, and going further down that road (fingerprint spoofing,
+   proxies) wasn't attempted - manual entry via the dashboard's edit form is
+   the answer for a site like that.
+5. **Cloudflare Workers AI** (optional, free-tier only) — only tried if 1-4
+   all found no date, against whichever page content is best available (the
+   browser-rendered version if step 4 ran); asks a free model to read the
+   page's own text and extract the same fields as structured JSON.
+6. Anything still missing is left absent from the returned dict. This is the
    expected, common outcome (see the Glastonbury test above) — not a bug to
    fix, and exactly what `scanner/alerts.py` exists to handle.
 
@@ -220,14 +237,16 @@ scrape still being in progress.
 
 ## Known limitations (MVP)
 
-- **No JS-rendered site support**: `scanner/extractor.py` uses a plain
-  `requests` fetch, not a headless browser — a festival site that only
-  renders its dates via client-side JavaScript (no JSON-LD, no server-side
-  HTML) won't be picked up by the text-heuristic pass, though the schema.org
-  JSON-LD pass still works since that's embedded in the initial HTML
-  regardless. `job-scraper` reaches for Playwright for its JS-rendered
-  sources (`scrapers/nhm.py`); the same approach could be added here per
-  event if a specific site needs it.
+- **Bot-protected sites can't be scraped at all**: `womad.co.uk` is the
+  known example - it blocks both a plain `requests` call and headless
+  Chromium identically (see step 4 above). No code change here will fix
+  that; the date/location for a site like this has to be entered manually
+  via the dashboard's edit form.
+- **The Playwright fallback adds real time to every scan**: launching a real
+  browser only happens for events the plain fetch already failed on, but
+  for those it's meaningfully slower than a plain HTTP request. Not an
+  issue at the scale of a handful of personal events; would be worth
+  revisiting if this ever tracked hundreds.
 - **Text-heuristic date guesses aren't verified**: step 3 above picks the
   earliest plausible-looking date in the page text, which can occasionally
   pick up an unrelated date mentioned nearby. A wrong guess gets overwritten

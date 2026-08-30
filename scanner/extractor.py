@@ -107,6 +107,41 @@ def fetch_html(url: str, timeout: int = 20) -> str:
     return resp.text
 
 
+def fetch_html_with_browser(url: str, timeout: int = 30) -> Optional[str]:
+    """Fallback for pages a plain `requests` call can't get: sites that only
+    render their content client-side (nothing useful in the raw HTML), and -
+    to a point - sites that block non-browser requests outright. Tried only
+    after fetch_html() itself fails, mirroring job-scraper's approach of
+    reaching for Playwright specifically for JS-rendered sources.
+
+    Real-world limit found testing this against womad.co.uk: it returns the
+    identical 403 Forbidden page to headless Chromium as it does to a plain
+    `requests` call, meaning it's fingerprinting the browser as automated
+    (a Cloudflare-style bot check), not just checking the User-Agent header.
+    This function can't help with that kind of block - it exists for sites
+    that are merely JS-rendered, not ones actively hostile to automation.
+    Returns None (never raises) on any failure, including Playwright/its
+    browser binaries not being installed, since this is already the last
+    resort before giving up on the page.
+    """
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        return None
+
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            try:
+                page = browser.new_page(user_agent=DEFAULT_USER_AGENT)
+                page.goto(url, timeout=timeout * 1000, wait_until="domcontentloaded")
+                return page.content()
+            finally:
+                browser.close()
+    except Exception:
+        return None
+
+
 def _iter_jsonld_nodes(soup: BeautifulSoup):
     for tag in soup.find_all("script", type="application/ld+json"):
         try:
@@ -381,20 +416,7 @@ def _first_present(key: str, *dicts: dict):
     return None
 
 
-def scrape_event(url: str) -> dict:
-    """Best-effort extraction of {name, start_date, end_date, location, is_free,
-    price_text} from an event page. Any field it can't determine is simply
-    absent from the returned dict - callers should never overwrite an
-    existing stored value with a missing one. Returning {} (nothing found) is
-    a normal, expected outcome for many real event sites, not an error - see
-    ARCHITECTURE.md's note on the Glastonbury test case.
-    """
-    try:
-        html = fetch_html(url)
-    except requests.RequestException:
-        return {}
-
-    soup = BeautifulSoup(html, "html.parser")
+def _extract_deterministic(soup: BeautifulSoup) -> dict:
     jsonld = extract_from_jsonld(soup)
     og = extract_from_opengraph(soup)
     text = {} if jsonld.get("start_date") else extract_date_from_text(soup)
@@ -404,8 +426,40 @@ def scrape_event(url: str) -> dict:
         value = _first_present(field, jsonld, text, og)
         if value is not None:
             result[field] = value
+    return result
+
+
+def scrape_event(url: str) -> dict:
+    """Best-effort extraction of {name, start_date, end_date, location, is_free,
+    price_text} from an event page. Any field it can't determine is simply
+    absent from the returned dict - callers should never overwrite an
+    existing stored value with a missing one. Returning {} (nothing found) is
+    a normal, expected outcome for many real event sites, not an error - see
+    ARCHITECTURE.md's note on the Glastonbury test case.
+    """
+    try:
+        soup = BeautifulSoup(fetch_html(url), "html.parser")
+        result = _extract_deterministic(soup)
+    except requests.RequestException:
+        soup = None
+        result = {}
 
     if not result.get("start_date"):
+        # Either the plain fetch failed outright, or it succeeded but found
+        # nothing - both cases are worth a real-browser retry, since a
+        # client-side-rendered page returns 200 with an essentially empty
+        # shell rather than an error. Whatever this finds is merged in
+        # without overwriting anything the plain fetch already got.
+        browser_html = fetch_html_with_browser(url)
+        if browser_html:
+            browser_soup = BeautifulSoup(browser_html, "html.parser")
+            browser_result = _extract_deterministic(browser_soup)
+            for field in FIELDS:
+                if field not in result and browser_result.get(field) is not None:
+                    result[field] = browser_result[field]
+            soup = browser_soup  # the richer page, worth preferring for the AI pass too
+
+    if not result.get("start_date") and soup is not None:
         ai_result = extract_with_workers_ai(soup)
         for field in FIELDS:
             if field not in result and ai_result.get(field) is not None:

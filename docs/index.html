@@ -188,6 +188,27 @@
   .list-row-date { font-size: 0.8rem; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
   .list-row.pending { cursor: default; }
   .list-row.pending:hover { background: none; }
+  .status-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 0.85rem;
+  }
+  .status-box .status-title { font-weight: 600; margin-bottom: 4px; }
+  .status-box .meta { font-size: 0.85rem; color: var(--muted); line-height: 1.5; margin: 6px 0; }
+  .spinner {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-right: 6px;
+    vertical-align: -1px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
@@ -223,6 +244,7 @@
   <div class="row">
     <button class="primary" id="add-submit">Add event</button>
   </div>
+  <div id="add-status" style="display:none; margin-top:12px;"></div>
 </div>
 
 <div class="panel">
@@ -265,7 +287,7 @@
 <div class="cards" id="cards"></div>
 <div class="empty" id="empty-state" style="display:none;"></div>
 
-<div class="panel">
+<div class="panel" style="margin-top:20px;">
   <div class="accordion-header" id="all-events-header">
     <h2>All events</h2>
     <span class="accordion-arrow" id="all-events-arrow">▸</span>
@@ -396,28 +418,7 @@ function renderCalendar() {
 }
 
 function hopToEvent(id) {
-  const e = events[id];
-  if (!e || !e.start_date) return;
-  const d = new Date(`${e.start_date}T00:00:00`);
-  calendarMonth = new Date(d.getFullYear(), d.getMonth(), 1);
-
-  // The whole point of jumping to an event is to see it, so any active
-  // filter that would otherwise hide it (a leftover search term, tag, or
-  // Free/Paid/Region filter from earlier browsing) is cleared first.
-  filterFree = null;
-  filterRegion = null;
-  activeTag = null;
-  searchQuery = "";
-  document.getElementById("search-box").value = "";
-
-  render();
-  requestAnimationFrame(() => {
-    const cell = document.querySelector(`.cal-cell[data-date="${e.start_date}"]`);
-    if (!cell) return;
-    cell.scrollIntoView({ behavior: "smooth", block: "center" });
-    cell.classList.add("highlight");
-    setTimeout(() => cell.classList.remove("highlight"), 1500);
-  });
+  revealEventCard(id, false);
 }
 
 function renderAllEventsList() {
@@ -679,15 +680,125 @@ async function apiCall(path, body) {
   return data;
 }
 
+// Reveals a specific event's card regardless of any active filter (the
+// whole point of calling this is to see that exact event), scoping the
+// calendar to its month if it has a date, then scrolling to and briefly
+// highlighting both the calendar cell (if applicable) and the card itself.
+// Optionally opens that card's edit form once it's in view.
+function revealEventCard(id, openEdit) {
+  const record = events[id];
+  filterFree = null;
+  filterRegion = null;
+  activeTag = null;
+  searchQuery = "";
+  document.getElementById("search-box").value = "";
+
+  if (record && record.start_date) {
+    const d = new Date(`${record.start_date}T00:00:00`);
+    calendarMonth = new Date(d.getFullYear(), d.getMonth(), 1);
+  }
+  render();
+
+  requestAnimationFrame(() => {
+    if (record && record.start_date) {
+      const cell = document.querySelector(`.cal-cell[data-date="${record.start_date}"]`);
+      if (cell) {
+        cell.classList.add("highlight");
+        setTimeout(() => cell.classList.remove("highlight"), 1500);
+      }
+    }
+    const card = document.querySelector(`.card[data-id="${CSS.escape(id)}"]`);
+    if (!card) return;
+    card.scrollIntoView({ behavior: "smooth", block: "center" });
+    card.style.outline = `2px solid var(--accent)`;
+    setTimeout(() => { card.style.outline = ""; }, 1500);
+    if (openEdit) card.querySelector(".edit-btn").click();
+  });
+}
+
+function renderAddStatusChecking(name) {
+  const statusEl = document.getElementById("add-status");
+  statusEl.style.display = "block";
+  statusEl.innerHTML = `
+    <div class="status-box">
+      <span class="spinner"></span>Checking "${esc(name)}" for its date and location — this usually takes under a minute.
+    </div>`;
+}
+
+function renderAddStatusReview(record) {
+  const statusEl = document.getElementById("add-status");
+  statusEl.innerHTML = `
+    <div class="status-box">
+      <div class="status-title">Found:</div>
+      <div>${esc(record.name)}</div>
+      <div class="meta">
+        ${esc(dateRangeLabel(record))}<br>
+        ${record.location ? esc(record.location) : "Location unknown"}
+      </div>
+      <div class="row" style="margin-top:8px;">
+        <button class="primary" id="add-status-accept">Looks good</button>
+        <button class="secondary" id="add-status-edit">Edit details</button>
+      </div>
+    </div>`;
+
+  const dismiss = () => { statusEl.style.display = "none"; statusEl.innerHTML = ""; };
+  document.getElementById("add-status-accept").addEventListener("click", () => {
+    dismiss();
+    revealEventCard(record.id, false);
+  });
+  document.getElementById("add-status-edit").addEventListener("click", () => {
+    dismiss();
+    revealEventCard(record.id, true);
+  });
+}
+
+function renderAddStatusTimeout() {
+  const statusEl = document.getElementById("add-status");
+  statusEl.innerHTML = `
+    <div class="status-box">
+      Still checking — some sites take longer, or may not be checkable at all
+      (see "Check dates now" above to retry later). The event is already
+      saved either way.
+      <div class="row" style="margin-top:8px;">
+        <button class="secondary" id="add-status-dismiss">Dismiss</button>
+      </div>
+    </div>`;
+  document.getElementById("add-status-dismiss").addEventListener("click", () => {
+    statusEl.style.display = "none";
+    statusEl.innerHTML = "";
+  });
+}
+
+// Polls events.json directly rather than the GitHub Actions run status -
+// simpler and more robust than trying to correlate a workflow_dispatch call
+// (which returns no run id) with the right run, at the cost of not being
+// able to show granular step-by-step progress.
+async function watchNewEvent(id) {
+  const maxAttempts = 15; // ~75s at 5s intervals
+  for (let i = 0; i < maxAttempts; i++) {
+    await new Promise((r) => setTimeout(r, 5000));
+    const res = await fetch("events.json", { cache: "no-store" });
+    const fresh = await res.json();
+    const record = fresh[id];
+    if (record && record.last_checked) {
+      events = fresh;
+      renderAddStatusReview(record);
+      return;
+    }
+  }
+  renderAddStatusTimeout();
+}
+
 document.getElementById("add-submit").addEventListener("click", async () => {
   const url = document.getElementById("add-url").value.trim();
   if (!url) { alert("Enter a URL first."); return; }
   const free = document.getElementById("add-free").value;
+  const name = document.getElementById("add-name").value.trim();
 
   try {
-    await apiCall("/add-event", {
+    const { id } = await apiCall("/add-event", {
       url,
-      name: document.getElementById("add-name").value.trim() || undefined,
+      name: name || undefined,
       tags: document.getElementById("add-tags").value,
       notes: document.getElementById("add-notes").value,
       is_free: free === "" ? null : free === "true",
@@ -700,6 +811,8 @@ document.getElementById("add-submit").addEventListener("click", async () => {
     document.getElementById("add-free").value = "";
     document.getElementById("add-region").value = "";
     await loadEvents();
+    renderAddStatusChecking(name || events[id]?.name || url);
+    watchNewEvent(id);
   } catch (err) {
     alert(err.message);
   }
