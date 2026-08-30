@@ -91,7 +91,11 @@ see ARCHITECTURE.md's "Automatic Worker deployment" section for how it works.
      GitHub secret in step 4 below.
 3. Find your **Account ID**: on the Workers & Pages overview page in
    Cloudflare, it's shown in the right-hand sidebar (or under **Account
-   Home**). Skip this if you already added `CLOUDFLARE_ACCOUNT_ID` in step 7.
+   Home**). Copy it carefully — pasting it with a stray trailing space or
+   newline (easy to pick up selecting text off the dashboard) makes
+   deployment fail with `Invalid account ID "***"`, which looks like the ID
+   itself is wrong even when it isn't. Skip this if you already added
+   `CLOUDFLARE_ACCOUNT_ID` in step 7.
 4. On GitHub: open `apineschi/calendar-app` > **Settings** > **Secrets and
    variables** > **Actions**. Add (or update) two repository secrets:
    - `CLOUDFLARE_API_TOKEN` — from step 2.
@@ -99,7 +103,7 @@ see ARCHITECTURE.md's "Automatic Worker deployment" section for how it works.
 5. That's it — the next time you push a change under `worker/`, it deploys
    itself. You can also trigger it manually from the repo's **Actions** tab
    ("Deploy Worker" > **Run workflow**) if you ever need to force a
-   redeploy without changing anything.
+   redeploy without changing anything. (Confirmed working 2026-08-30.)
 
 ### 6. Set up email alerts
 

@@ -134,13 +134,26 @@ they're deliberately *not* in `wrangler.toml` (putting a real secret value
 in a version-controlled file would defeat the whole point) and stay managed
 exactly as before, via the dashboard's Settings > Variables and Secrets.
 
-One gotcha worth knowing: this repo's `CLOUDFLARE_API_TOKEN` secret may
-already exist for a *different* reason (`scanner/extractor.py`'s optional
-Workers AI fallback, called from Python inside `monthly-check.yml`, not
-from this Worker at all) — that token only has Workers AI permissions, not
-Workers Scripts: Edit, so deploying with it as-is will fail. It needs both
-permissions, or a second token, since the GitHub secret name is shared
-between both workflows. See INSTRUCTIONS.md's setup step 5b.
+Live and confirmed working (2026-08-30): a push to `worker/` deploys
+automatically, and `workflow_dispatch` also works for forcing a redeploy
+on demand. Two real setup snags hit getting there, both worth knowing if
+this ever needs re-doing (e.g. rotating the token):
+
+- `CLOUDFLARE_API_TOKEN` needs **both** Workers AI (Edit + Read) *and*
+  Workers Scripts (Edit) permissions on the same token, since this repo's
+  `monthly-check.yml` already uses a secret of that exact name for a
+  *different* purpose (`scanner/extractor.py`'s optional Workers AI
+  extraction fallback, called from Python — nothing to do with this
+  Worker). A token created only from Cloudflare's "Workers AI" template
+  fails deployment with no useful error text (wrangler-action doesn't print
+  token-related failures, to avoid leaking them) until Workers Scripts:
+  Edit is added alongside it.
+- `CLOUDFLARE_ACCOUNT_ID` failed once with `Invalid account ID "***"` even
+  though it looked correct at a glance — the pasted value had picked up a
+  stray character (trailing whitespace/newline from copying off the
+  Cloudflare dashboard) that wrangler's validation rejects outright (it
+  only accepts alphanumeric characters, hyphens, and underscores). Re-copy
+  and re-paste cleanly if this error shows up again.
 
 ## The event record
 
