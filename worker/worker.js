@@ -276,8 +276,10 @@ async function handleAddEvent(request, env, origin) {
         tags: normalizeTags(tags),
         notes: notes || "",
         last_known_year: null,
+        last_known_month: null,
         last_checked: null,
         alert_sent_for_year: null,
+        went_stale_notified_for_year: null,
         calendar_uid: `${newId}@calendar-app.apineschi`,
       };
       return newId;
@@ -317,12 +319,18 @@ async function handleEditEvent(request, env, origin) {
         if ("tags" in body) events[id].tags = normalizeTags(body.tags);
 
         // A manually-entered/corrected date should count as a confirmed
-        // sighting, same as one the scanner found itself.
+        // sighting, same as one the scanner found itself - mirrors the
+        // rollover handling in main.py's per-event loop, including
+        // resetting both notification dedupe flags so a future staleness/
+        // alert cycle for this (now current) date can fire again.
         if (body.start_date) {
-          const year = Number(String(body.start_date).slice(0, 4));
+          const d = new Date(`${body.start_date}T00:00:00`);
+          const year = d.getFullYear();
           if (!events[id].last_known_year || year > events[id].last_known_year) {
             events[id].last_known_year = year;
+            events[id].last_known_month = d.getMonth() + 1;
             events[id].alert_sent_for_year = null;
+            events[id].went_stale_notified_for_year = null;
           }
         }
       },

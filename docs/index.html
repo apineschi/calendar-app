@@ -262,7 +262,10 @@
 
 <div class="panel">
   <h2>Filter</h2>
-  <input type="text" id="search-box" placeholder="Search name, location, notes, tags…" style="margin-bottom:14px;">
+  <div class="row" style="margin-top:0; margin-bottom:14px;">
+    <input type="text" id="search-box" placeholder="Search all events…" style="flex:1; width:auto; margin-top:0;">
+    <button class="secondary" id="search-btn">Search</button>
+  </div>
   <div class="filter-row">
     <div class="filter-label">Price</div>
     <div class="tag-filter" id="pinned-price-filter">
@@ -281,6 +284,12 @@
     <div class="filter-label">Tags</div>
     <div class="tag-filter" id="tag-filter"></div>
   </div>
+</div>
+
+<div class="panel">
+  <h2>No date set</h2>
+  <div class="cards" id="no-date-cards"></div>
+  <div class="empty" id="no-date-empty" style="display:none;"></div>
 </div>
 
 <div class="filter-label" id="cards-month-label" style="margin: 0 0 8px 4px;"></div>
@@ -329,11 +338,10 @@ let calendarMonth = new Date();
 calendarMonth.setDate(1);
 
 // The card list is scoped to whatever month the calendar above is showing.
-// Events with no start_date yet ("pending") don't belong to any month, so
-// they're kept visible regardless — otherwise a newly-added event with no
-// date yet would vanish from the list entirely until it's found.
+// Events with no start_date live exclusively in the "No date set" section
+// instead (see render()) - callers should only pass events that already
+// have a start_date.
 function eventOverlapsMonth(e, year, month) {
-  if (!e.start_date) return true;
   const lastDay = new Date(year, month + 1, 0).getDate();
   const monthStart = `${year}-${String(month + 1).padStart(2, "0")}-01`;
   const monthEnd = `${year}-${String(month + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
@@ -488,6 +496,10 @@ document.getElementById("search-box").addEventListener("input", (e) => {
   searchQuery = e.target.value.trim().toLowerCase();
   render();
 });
+document.getElementById("search-btn").addEventListener("click", () => {
+  searchQuery = document.getElementById("search-box").value.trim().toLowerCase();
+  render();
+});
 
 document.getElementById("check-now-btn").addEventListener("click", async () => {
   try {
@@ -513,6 +525,104 @@ document.querySelectorAll("#pinned-region-filter .chip").forEach((chip) => {
   });
 });
 
+function matchesSearch(e) {
+  if (!searchQuery) return true;
+  const haystack = [e.name, e.location, e.notes, ...(e.tags || [])].filter(Boolean).join(" ").toLowerCase();
+  return haystack.includes(searchQuery);
+}
+
+function passesCommonFilters(e) {
+  return (
+    (filterFree === null || e.is_free === filterFree) &&
+    (filterRegion === null || e.region === filterRegion) &&
+    (!activeTag || (e.tags || []).includes(activeTag)) &&
+    matchesSearch(e)
+  );
+}
+
+function buildCardHtml(e) {
+  const dateLabel = dateRangeLabel(e);
+  const priceBadge = e.is_free === true
+    ? '<span class="badge free">Free</span>'
+    : e.is_free === false
+      ? `<span class="badge paid">${esc(e.price_text || "Paid")}</span>`
+      : '<span class="badge pending">Price unknown</span>';
+
+  return `
+    <div class="card" data-id="${esc(e.id)}">
+      <h3><a href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.name)}</a></h3>
+      <div class="meta">
+        ${dateLabel}<br>
+        ${e.location ? esc(e.location) : "Location unknown"}
+        <a class="card-url" href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.url)}</a>
+      </div>
+      <div style="margin-top:8px;">
+        ${priceBadge}
+        ${e.region ? `<span class="badge pending">${e.region === "uk" ? "UK" : "International"}</span>` : ""}
+      </div>
+      <div class="tags">${(e.tags || []).map((t) => `<span>${esc(t)}</span>`).join("")}</div>
+      ${e.notes ? `<div class="notes">${esc(e.notes)}</div>` : ""}
+      <div class="card-actions">
+        <button class="secondary edit-btn">Edit</button>
+        <button class="danger delete-btn">Delete</button>
+      </div>
+      <div class="edit-form" style="display:none; margin-top:10px;">
+        <label>Name</label>
+        <input type="text" class="f-name" value="${esc(e.name)}">
+        <label>Location</label>
+        <input type="text" class="f-location" value="${esc(e.location || "")}">
+        <label>Start date (YYYY-MM-DD)</label>
+        <input type="text" class="f-start" value="${esc(e.start_date || "")}">
+        <label>End date (YYYY-MM-DD)</label>
+        <input type="text" class="f-end" value="${esc(e.end_date || "")}">
+        <label>Free or paid</label>
+        <select class="f-free">
+          <option value="" ${e.is_free == null ? "selected" : ""}>Unknown</option>
+          <option value="true" ${e.is_free === true ? "selected" : ""}>Free</option>
+          <option value="false" ${e.is_free === false ? "selected" : ""}>Paid</option>
+        </select>
+        <label>Region</label>
+        <select class="f-region">
+          <option value="" ${!e.region ? "selected" : ""}>Unknown</option>
+          <option value="uk" ${e.region === "uk" ? "selected" : ""}>UK</option>
+          <option value="international" ${e.region === "international" ? "selected" : ""}>International</option>
+        </select>
+        <label>Price text</label>
+        <input type="text" class="f-price" value="${esc(e.price_text || "")}">
+        <label>Tags (comma separated)</label>
+        <input type="text" class="f-tags" value="${esc((e.tags || []).join(", "))}">
+        <label>Notes</label>
+        <textarea class="f-notes">${esc(e.notes || "")}</textarea>
+        <div class="row">
+          <button class="primary save-btn">Save</button>
+          <button class="secondary cancel-btn">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function wireCardListeners(containerEl) {
+  containerEl.querySelectorAll(".card").forEach((card) => {
+    const id = card.dataset.id;
+    const form = card.querySelector(".edit-form");
+    card.querySelector(".edit-btn").addEventListener("click", () => {
+      form.style.display = form.style.display === "none" ? "block" : "none";
+    });
+    card.querySelector(".cancel-btn").addEventListener("click", () => {
+      form.style.display = "none";
+    });
+    card.querySelector(".save-btn").addEventListener("click", () => saveEdit(id, card));
+    card.querySelector(".delete-btn").addEventListener("click", () => deleteEvent(id, events[id].name));
+  });
+}
+
+function renderCardsInto(containerEl, emptyEl, list, emptyMessage) {
+  emptyEl.style.display = list.length ? "none" : "block";
+  emptyEl.textContent = emptyMessage;
+  containerEl.innerHTML = list.map(buildCardHtml).join("");
+  wireCardListeners(containerEl);
+}
+
 function render() {
   renderCalendar();
   renderAllEventsList();
@@ -537,101 +647,47 @@ function render() {
   });
 
   const allEvents = Object.values(events);
-  const list = allEvents
-    .filter((e) => eventOverlapsMonth(e, calendarMonth.getFullYear(), calendarMonth.getMonth()))
-    .filter((e) => filterFree === null || e.is_free === filterFree)
-    .filter((e) => filterRegion === null || e.region === filterRegion)
-    .filter((e) => !activeTag || (e.tags || []).includes(activeTag))
-    .filter((e) => {
-      if (!searchQuery) return true;
-      const haystack = [e.name, e.location, e.notes, ...(e.tags || [])].filter(Boolean).join(" ").toLowerCase();
-      return haystack.includes(searchQuery);
-    })
-    .sort((a, b) => (a.start_date || "9999").localeCompare(b.start_date || "9999"));
+  const commonFiltered = allEvents.filter(passesCommonFilters);
 
-  document.getElementById("cards-month-label").textContent =
-    `Events in ${calendarMonth.toLocaleDateString(undefined, { year: "numeric", month: "long" })}`;
+  // "No date set" is always global (never month-scoped) - these events
+  // have nothing to scope by, and burying them inside whichever month
+  // happens to be showing is exactly the confusion this section replaces
+  // (an event with no date used to show up "in" every month it was viewed
+  // from, e.g. appearing to belong to August just because that's what was
+  // on screen).
+  const noDateList = commonFiltered
+    .filter((e) => !e.start_date)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  renderCardsInto(
+    document.getElementById("no-date-cards"),
+    document.getElementById("no-date-empty"),
+    noDateList,
+    "Nothing waiting on a date right now."
+  );
 
-  const cardsEl = document.getElementById("cards");
-  const emptyEl = document.getElementById("empty-state");
-  emptyEl.style.display = list.length ? "none" : "block";
-  emptyEl.textContent = allEvents.length
-    ? "No events match this month/filter."
-    : "No events tracked yet — add one above.";
+  // Main section: month-scoped browsing normally, but a search query
+  // searches every dated event regardless of month - searching only within
+  // whatever month happened to be on screen was the bug that made search
+  // look broken (e.g. searching "love" while viewing August found nothing,
+  // since Love Supreme's real date is July 2027).
+  const dated = commonFiltered.filter((e) => e.start_date);
+  let mainList, label;
+  if (searchQuery) {
+    mainList = dated;
+    label = `Search results for "${searchQuery}"`;
+  } else {
+    mainList = dated.filter((e) => eventOverlapsMonth(e, calendarMonth.getFullYear(), calendarMonth.getMonth()));
+    label = `Events in ${calendarMonth.toLocaleDateString(undefined, { year: "numeric", month: "long" })}`;
+  }
+  mainList.sort((a, b) => a.start_date.localeCompare(b.start_date));
 
-  cardsEl.innerHTML = list.map((e) => {
-    const dateLabel = dateRangeLabel(e);
-    const priceBadge = e.is_free === true
-      ? '<span class="badge free">Free</span>'
-      : e.is_free === false
-        ? `<span class="badge paid">${esc(e.price_text || "Paid")}</span>`
-        : '<span class="badge pending">Price unknown</span>';
-
-    return `
-      <div class="card" data-id="${esc(e.id)}">
-        <h3><a href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.name)}</a></h3>
-        <div class="meta">
-          ${dateLabel}<br>
-          ${e.location ? esc(e.location) : "Location unknown"}
-          <a class="card-url" href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.url)}</a>
-        </div>
-        <div style="margin-top:8px;">
-          ${priceBadge}
-          ${e.region ? `<span class="badge pending">${e.region === "uk" ? "UK" : "International"}</span>` : ""}
-        </div>
-        <div class="tags">${(e.tags || []).map((t) => `<span>${esc(t)}</span>`).join("")}</div>
-        ${e.notes ? `<div class="notes">${esc(e.notes)}</div>` : ""}
-        <div class="card-actions">
-          <button class="secondary edit-btn">Edit</button>
-          <button class="danger delete-btn">Delete</button>
-        </div>
-        <div class="edit-form" style="display:none; margin-top:10px;">
-          <label>Name</label>
-          <input type="text" class="f-name" value="${esc(e.name)}">
-          <label>Location</label>
-          <input type="text" class="f-location" value="${esc(e.location || "")}">
-          <label>Start date (YYYY-MM-DD)</label>
-          <input type="text" class="f-start" value="${esc(e.start_date || "")}">
-          <label>End date (YYYY-MM-DD)</label>
-          <input type="text" class="f-end" value="${esc(e.end_date || "")}">
-          <label>Free or paid</label>
-          <select class="f-free">
-            <option value="" ${e.is_free == null ? "selected" : ""}>Unknown</option>
-            <option value="true" ${e.is_free === true ? "selected" : ""}>Free</option>
-            <option value="false" ${e.is_free === false ? "selected" : ""}>Paid</option>
-          </select>
-          <label>Region</label>
-          <select class="f-region">
-            <option value="" ${!e.region ? "selected" : ""}>Unknown</option>
-            <option value="uk" ${e.region === "uk" ? "selected" : ""}>UK</option>
-            <option value="international" ${e.region === "international" ? "selected" : ""}>International</option>
-          </select>
-          <label>Price text</label>
-          <input type="text" class="f-price" value="${esc(e.price_text || "")}">
-          <label>Tags (comma separated)</label>
-          <input type="text" class="f-tags" value="${esc((e.tags || []).join(", "))}">
-          <label>Notes</label>
-          <textarea class="f-notes">${esc(e.notes || "")}</textarea>
-          <div class="row">
-            <button class="primary save-btn">Save</button>
-            <button class="secondary cancel-btn">Cancel</button>
-          </div>
-        </div>
-      </div>`;
-  }).join("");
-
-  cardsEl.querySelectorAll(".card").forEach((card) => {
-    const id = card.dataset.id;
-    const form = card.querySelector(".edit-form");
-    card.querySelector(".edit-btn").addEventListener("click", () => {
-      form.style.display = form.style.display === "none" ? "block" : "none";
-    });
-    card.querySelector(".cancel-btn").addEventListener("click", () => {
-      form.style.display = "none";
-    });
-    card.querySelector(".save-btn").addEventListener("click", () => saveEdit(id, card));
-    card.querySelector(".delete-btn").addEventListener("click", () => deleteEvent(id, events[id].name));
-  });
+  document.getElementById("cards-month-label").textContent = label;
+  renderCardsInto(
+    document.getElementById("cards"),
+    document.getElementById("empty-state"),
+    mainList,
+    allEvents.length ? "No events match this month/filter." : "No events tracked yet — add one above."
+  );
 }
 
 function getPassword() {
@@ -835,6 +891,7 @@ async function saveEdit(id, card) {
       notes: q(".f-notes"),
     });
     await loadEvents();
+    revealEventCard(id, false);
   } catch (err) {
     alert(err.message);
   }

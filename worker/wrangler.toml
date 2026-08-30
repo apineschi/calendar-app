@@ -1,0 +1,16 @@
+name = "calendar-app"
+main = "worker.js"
+compatibility_date = "2026-08-30"
+
+# Secrets (GITHUB_TOKEN, APP_SECRET) are deliberately NOT declared here -
+# they stay managed via the Cloudflare dashboard's Settings > Variables and
+# Secrets (or `wrangler secret put`), and are never touched or deleted by a
+# deploy regardless of what this file contains. Only the non-secret vars
+# need to live here so an automated deploy doesn't wipe them - see
+# ARCHITECTURE.md's "Automatic Worker deployment" section for why that
+# matters once Wrangler is doing the deploying.
+
+[vars]
+GITHUB_OWNER = "apineschi"
+GITHUB_REPO = "calendar-app"
+ALLOWED_ORIGIN = "https://apineschi.github.io"

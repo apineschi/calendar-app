@@ -63,6 +63,44 @@ phone.
 4. Wait a minute for GitHub Pages to build, then visit
    `https://apineschi.github.io/calendar-app/`.
 
+### 5b. (Optional but recommended) Set up automatic Worker deployment
+
+Without this, every future change to `worker/worker.js` needs to be manually
+pasted into the Cloudflare dashboard's code editor and redeployed. With it,
+pushing a change via GitHub Desktop deploys automatically. One-time setup —
+see ARCHITECTURE.md's "Automatic Worker deployment" section for how it works.
+
+1. First, check that your Worker's actual name (top of its page in the
+   Cloudflare dashboard) is exactly `calendar-app`, matching
+   `worker/wrangler.toml`'s `name` field — Wrangler deploys to whatever
+   name is in that file, so a mismatch means it'll create a brand-new,
+   separate Worker (with none of your secrets) instead of updating the one
+   you already set up. If yours is named differently, either rename it in
+   the dashboard (**Settings** > rename) or edit `wrangler.toml` to match.
+2. In Cloudflare: **My Profile** (top right) > **API Tokens** > **Create
+   Token**. Under **Custom token**, add the permission **Account > Workers
+   Scripts > Edit**, then scope it to your specific account. Create it and
+   copy the token — you won't be able to see it again.
+   - **If you already did step 7 below** (the Workers AI extraction
+     fallback), you already have a `CLOUDFLARE_API_TOKEN` secret, but it was
+     created with a *different* permission (Workers AI: Edit, not Workers
+     Scripts: Edit) — deployment will fail with that one. Either add
+     **Workers Scripts > Edit** to that same token (Cloudflare: **My
+     Profile** > **API Tokens** > find it > **Edit** if available), or
+     create a fresh token with both permissions and use it to replace the
+     GitHub secret in step 4 below.
+3. Find your **Account ID**: on the Workers & Pages overview page in
+   Cloudflare, it's shown in the right-hand sidebar (or under **Account
+   Home**). Skip this if you already added `CLOUDFLARE_ACCOUNT_ID` in step 7.
+4. On GitHub: open `apineschi/calendar-app` > **Settings** > **Secrets and
+   variables** > **Actions**. Add (or update) two repository secrets:
+   - `CLOUDFLARE_API_TOKEN` — from step 2.
+   - `CLOUDFLARE_ACCOUNT_ID` — from step 3.
+5. That's it — the next time you push a change under `worker/`, it deploys
+   itself. You can also trigger it manually from the repo's **Actions** tab
+   ("Deploy Worker" > **Run workflow**) if you ever need to force a
+   redeploy without changing anything.
+
 ### 6. Set up email alerts
 
 Same pattern as `job-scraper`. In the `calendar-app` repo on GitHub:

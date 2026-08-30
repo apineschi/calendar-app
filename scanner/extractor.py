@@ -238,7 +238,8 @@ def extract_from_opengraph(soup: BeautifulSoup) -> dict:
 
 LOCATION_STOP_WORDS_RE = re.compile(
     r"\b(previous|line-?up|tickets?|book|home|about|news|menu|faq|shop|"
-    r"gallery|contact|sign\s*up|subscribe|wellness|families|restaurant)\b",
+    r"gallery|contact|sign\s*up|subscribe|wellness|families|restaurant|"
+    r"skip\s*to(\s*main)?(\s*content)?)\b",
     re.IGNORECASE,
 )
 
@@ -260,7 +261,11 @@ def _guess_location_after(text: str, end_pos: int) -> Optional[str]:
     digit_match = re.search(r"\d", snippet)
     if digit_match:
         snippet = snippet[:digit_match.start()]
-    snippet = snippet.strip(" ,.-")
+    # readingfestival.com puts a "|" separator between the date and the
+    # venue in the flattened text ("...2026 | Richfield Avenue, Reading
+    # Skip to main content"), which the stop-word/digit cuts above don't
+    # touch since it comes before the venue name, not after it.
+    snippet = snippet.strip(" ,.-|")
     return snippet if 3 <= len(snippet) <= 80 else None
 
 

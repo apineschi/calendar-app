@@ -4,7 +4,7 @@ import sys
 from datetime import date, datetime, timezone
 
 from notify.email import format_alert_digest, format_alert_digest_html
-from scanner.alerts import compute_alert
+from scanner.alerts import check_staleness, compute_alert
 from scanner.extractor import scrape_event
 from scanner.ics import build_calendar
 
@@ -38,7 +38,8 @@ def save_events(events: dict) -> None:
 def main():
     events = load_events()
     today = datetime.now(timezone.utc).date()
-    alerts = []
+    stale_alerts = []
+    upcoming_alerts = []
 
     for record in events.values():
         try:
@@ -51,27 +52,43 @@ def main():
             if found.get(field) is not None:
                 record[field] = found[field]
 
-        if record.get("start_date") and not record.get("last_known_year"):
-            record["last_known_year"] = date.fromisoformat(record["start_date"]).year
+        # last_known_year/month are the persistent memory of "when this
+        # event last happened" - unlike start_date/end_date, they're never
+        # cleared by check_staleness() below, so compute_alert() can keep
+        # working out the right alert window even once the actual date is
+        # gone. A rollover to a genuinely new year clears both notification
+        # dedupe flags, so the next cycle's staleness/alert can fire again.
+        if record.get("start_date"):
+            found_year = date.fromisoformat(record["start_date"]).year
+            if not record.get("last_known_year") or found_year > record["last_known_year"]:
+                record["last_known_year"] = found_year
+                record["last_known_month"] = date.fromisoformat(record["start_date"]).month
+                record["alert_sent_for_year"] = None
+                record["went_stale_notified_for_year"] = None
 
         record["last_checked"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
-        updates, alert_fired = compute_alert(record, today)
-        record.update(updates)
+        stale_updates, stale_notify = check_staleness(record, today)
+        record.update(stale_updates)
+        if stale_notify:
+            stale_alerts.append(record)
+
+        alert_updates, alert_fired = compute_alert(record, today)
+        record.update(alert_updates)
         if alert_fired:
-            alerts.append(record)
+            upcoming_alerts.append(record)
 
     save_events(events)
 
     with open(ICS_PATH, "wb") as f:
         f.write(build_calendar(events))
 
-    digest = format_alert_digest(alerts)
+    digest = format_alert_digest(stale_alerts, upcoming_alerts)
     print(digest)
 
-    if alerts:
+    if stale_alerts or upcoming_alerts:
         with open(EMAIL_HTML_PATH, "w", encoding="utf-8") as f:
-            f.write(format_alert_digest_html(alerts))
+            f.write(format_alert_digest_html(stale_alerts, upcoming_alerts))
 
 
 if __name__ == "__main__":
