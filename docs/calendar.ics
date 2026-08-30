@@ -1,13 +1,13 @@
 BEGIN:VCALENDAR
-VERSION:2.0
 PRODID:-//calendar-app//apineschi//
+VERSION:2.0
 BEGIN:VEVENT
+UID:lovesupremefestival-com@calendar-app.apineschi
 SUMMARY:Love Supreme Jazz Festival
 DTSTART;VALUE=DATE:20270702
 DTEND;VALUE=DATE:20270705
-DTSTAMP:20260830T083550Z
-UID:lovesupremefestival-com@calendar-app.apineschi
+DTSTAMP:20260830T085514Z
+LOCATION:Glynde Place, East Sussex
 DESCRIPTION:https://lovesupremefestival.com/
-LOCATION:Glynde Place\, East Sussex
 END:VEVENT
 END:VCALENDAR
