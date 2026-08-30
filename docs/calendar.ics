@@ -1,21 +1,30 @@
 BEGIN:VCALENDAR
-VERSION:2.0
 PRODID:-//calendar-app//apineschi//
+VERSION:2.0
 BEGIN:VEVENT
+UID:lovesupremefestival-com@calendar-app.apineschi
 SUMMARY:Love Supreme Jazz Festival
 DTSTART;VALUE=DATE:20270702
 DTEND;VALUE=DATE:20270705
-DTSTAMP:20260830T085551Z
-UID:lovesupremefestival-com@calendar-app.apineschi
+DTSTAMP:20260830T091806Z
+LOCATION:Glynde Place, East Sussex
 DESCRIPTION:https://lovesupremefestival.com/
-LOCATION:Glynde Place\, East Sussex
 END:VEVENT
 BEGIN:VEVENT
+UID:empire@calendar-app.apineschi
 SUMMARY:Empire
 DTSTART;VALUE=DATE:20260911
 DTEND;VALUE=DATE:20260914
-DTSTAMP:20260830T085551Z
-UID:empire@calendar-app.apineschi
+DTSTAMP:20260830T091806Z
 DESCRIPTION:https://www.profounddecisions.co.uk
+END:VEVENT
+BEGIN:VEVENT
+UID:reading-festival@calendar-app.apineschi
+SUMMARY:Reading Festival
+DTSTART;VALUE=DATE:20260827
+DTEND;VALUE=DATE:20260831
+DTSTAMP:20260830T091806Z
+LOCATION:Richfield Avenue, Reading
+DESCRIPTION:https://www.readingfestival.com/
 END:VEVENT
 END:VCALENDAR
