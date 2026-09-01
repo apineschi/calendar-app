@@ -14,7 +14,7 @@
     ],
     "notes": "",
     "last_known_year": 2027,
-    "last_checked": "2026-08-30T09:12:43+00:00",
+    "last_checked": "2026-09-01T13:57:19+00:00",
     "alert_sent_for_year": null,
     "calendar_uid": "lovesupremefestival-com@calendar-app.apineschi"
   },
@@ -33,7 +33,7 @@
     ],
     "notes": "",
     "last_known_year": 2026,
-    "last_checked": "2026-08-30T09:12:44+00:00",
+    "last_checked": "2026-09-01T13:57:20+00:00",
     "alert_sent_for_year": null,
     "calendar_uid": "empire@calendar-app.apineschi",
     "region": "uk"
@@ -43,7 +43,7 @@
     "name": "WOMAD Festival",
     "url": "https://womad.co.uk/",
     "location": null,
-    "start_date": null,
+    "start_date": "2026-09-01",
     "end_date": null,
     "is_free": false,
     "price_text": null,
@@ -53,10 +53,12 @@
       "festival"
     ],
     "notes": "",
-    "last_known_year": null,
-    "last_checked": "2026-08-30T09:12:46+00:00",
+    "last_known_year": 2026,
+    "last_checked": "2026-09-01T13:57:26+00:00",
     "alert_sent_for_year": null,
-    "calendar_uid": "womad-festival@calendar-app.apineschi"
+    "calendar_uid": "womad-festival@calendar-app.apineschi",
+    "last_known_month": 9,
+    "went_stale_notified_for_year": null
   },
   "reading-festival": {
     "id": "reading-festival",
@@ -74,7 +76,7 @@
     ],
     "notes": "",
     "last_known_year": 2026,
-    "last_checked": "2026-08-30T09:12:48+00:00",
+    "last_checked": "2026-09-01T13:57:26+00:00",
     "alert_sent_for_year": null,
     "calendar_uid": "reading-festival@calendar-app.apineschi"
   }
