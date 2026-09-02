@@ -86,7 +86,7 @@
     "id": "www-bbc-co-uk",
     "name": "BBC Proms",
     "url": "https://www.bbc.co.uk/proms",
-    "location": null,
+    "location": "Royal Albert Hall, London",
     "start_date": "2026-07-17",
     "end_date": "2026-09-12",
     "is_free": false,
