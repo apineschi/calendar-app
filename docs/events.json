@@ -79,5 +79,26 @@
     "last_checked": "2026-09-01T13:57:26+00:00",
     "alert_sent_for_year": null,
     "calendar_uid": "reading-festival@calendar-app.apineschi"
+  },
+  "www-bbc-co-uk": {
+    "id": "www-bbc-co-uk",
+    "name": "www.bbc.co.uk",
+    "url": "https://www.bbc.co.uk/proms",
+    "location": null,
+    "start_date": null,
+    "end_date": null,
+    "is_free": false,
+    "price_text": null,
+    "region": "uk",
+    "tags": [
+      "music"
+    ],
+    "notes": "",
+    "last_known_year": null,
+    "last_known_month": null,
+    "last_checked": null,
+    "alert_sent_for_year": null,
+    "went_stale_notified_for_year": null,
+    "calendar_uid": "www-bbc-co-uk@calendar-app.apineschi"
   }
 }
