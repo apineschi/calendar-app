@@ -14,7 +14,7 @@
     ],
     "notes": "",
     "last_known_year": 2027,
-    "last_checked": "2026-09-01T13:57:19+00:00",
+    "last_checked": "2026-09-02T06:31:23+00:00",
     "alert_sent_for_year": null,
     "calendar_uid": "lovesupremefestival-com@calendar-app.apineschi"
   },
@@ -33,7 +33,7 @@
     ],
     "notes": "",
     "last_known_year": 2026,
-    "last_checked": "2026-09-01T13:57:20+00:00",
+    "last_checked": "2026-09-02T06:31:24+00:00",
     "alert_sent_for_year": null,
     "calendar_uid": "empire@calendar-app.apineschi",
     "region": "uk"
@@ -54,7 +54,7 @@
     ],
     "notes": "",
     "last_known_year": 2026,
-    "last_checked": "2026-09-01T13:57:26+00:00",
+    "last_checked": "2026-09-02T06:31:34+00:00",
     "alert_sent_for_year": null,
     "calendar_uid": "womad-festival@calendar-app.apineschi",
     "last_known_month": 9,
@@ -65,8 +65,8 @@
     "name": "Reading Festival",
     "url": "https://www.readingfestival.com/",
     "location": "Richfield Avenue, Reading",
-    "start_date": "2026-08-27",
-    "end_date": "2026-08-30",
+    "start_date": "2027-08-26",
+    "end_date": "2027-08-29",
     "is_free": false,
     "price_text": null,
     "region": "uk",
@@ -75,10 +75,12 @@
       "festival"
     ],
     "notes": "",
-    "last_known_year": 2026,
-    "last_checked": "2026-09-01T13:57:26+00:00",
+    "last_known_year": 2027,
+    "last_checked": "2026-09-02T06:31:34+00:00",
     "alert_sent_for_year": null,
-    "calendar_uid": "reading-festival@calendar-app.apineschi"
+    "calendar_uid": "reading-festival@calendar-app.apineschi",
+    "last_known_month": 8,
+    "went_stale_notified_for_year": null
   },
   "www-bbc-co-uk": {
     "id": "www-bbc-co-uk",
@@ -94,11 +96,11 @@
       "music"
     ],
     "notes": "",
-    "last_known_year": null,
-    "last_known_month": null,
-    "last_checked": null,
+    "last_known_year": 2026,
+    "last_known_month": 7,
+    "last_checked": "2026-09-02T06:31:34+00:00",
     "alert_sent_for_year": null,
-    "went_stale_notified_for_year": null,
+    "went_stale_notified_for_year": 2026,
     "calendar_uid": "www-bbc-co-uk@calendar-app.apineschi"
   }
 }
