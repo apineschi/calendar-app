@@ -102,5 +102,26 @@
     "alert_sent_for_year": null,
     "went_stale_notified_for_year": 2026,
     "calendar_uid": "www-bbc-co-uk@calendar-app.apineschi"
+  },
+  "leyton-arts-festival": {
+    "id": "leyton-arts-festival",
+    "name": "Leyton Arts Festival",
+    "url": "https://www.eventbrite.com/e/leyton-arts-festival-tickets-1996446314670",
+    "location": null,
+    "start_date": null,
+    "end_date": null,
+    "is_free": true,
+    "price_text": null,
+    "region": "uk",
+    "tags": [
+      "art"
+    ],
+    "notes": "",
+    "last_known_year": null,
+    "last_known_month": null,
+    "last_checked": null,
+    "alert_sent_for_year": null,
+    "went_stale_notified_for_year": null,
+    "calendar_uid": "leyton-arts-festival@calendar-app.apineschi"
   }
 }
