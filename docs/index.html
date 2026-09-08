@@ -10,49 +10,33 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="theme-color" content="#4a2f7a">
 <style>
-  /* A deliberate, fixed palette (not tied to system light/dark mode - these
-     specific colors are the point, so no @media (prefers-color-scheme: dark)
-     override exists to fight them). --bg is also what input/select/textarea
-     "wells", tag chips, and the calendar's selected-day cell use, so it
-     reads as a consistent purple accent surface against every panel color
-     below, rather than needing a different treatment per panel. */
   :root {
-    color-scheme: light;
-    --bg: #7A559A;
+    color-scheme: light dark;
+    --bg: #f6f5f2;
     --card: #ffffff;
-    --text: #ffffff;
-    --muted: #e2d6ee;
-    --border: #9b7ec2;
-    /* --text/--muted above get overridden per panel below (so panel body
-       text stays readable against that panel's own color) - but --bg stays
-       this same purple everywhere regardless of panel, so anything drawn
-       ON var(--bg) (inputs, tag chips, the selected calendar cell, status
-       boxes) needs its OWN fixed pair here instead of var(--text)/
-       var(--muted), which would otherwise inherit whatever the surrounding
-       panel overrode them to and go dark-text-on-purple in some panels. */
-    --well-text: #ffffff;
-    --well-muted: #e2d6ee;
+    --text: #1b1b1b;
+    --muted: #6b6b6b;
+    --border: #e2e0da;
     --accent: #2f6f4f;
     --accent-text: #ffffff;
     --badge-free: #2f6f4f;
     --badge-paid: #7a4b1c;
     --danger: #a33;
   }
-  /* Each panel's background is one of four fixed colors, cycled in DOM
-     order (see the panel-* class on each <div class="panel">). --text/
-     --muted/--border are overridden locally per panel too - the pastel
-     three (mint/yellow/peach) are light enough for the site's normal dark
-     text, but #CE4760 (rose) is dark/saturated enough that dark text drops
-     below readable contrast there, so that one flips to light text instead
-     (checked against WCAG contrast math, not just eyeballed: dark text on
-     the rose panel comes out under 4:1, white comes out over 4.4:1).
-     Cards, inputs, and badges inside a panel are unaffected - --card stays
-     white everywhere so dense card content (name/date/tags/notes) reads the
-     same regardless of which panel it's sitting in. */
-  .panel.panel-mint { background: #90E39A; --text: #123018; --muted: #2f5b3b; --border: #5fbf74; }
-  .panel.panel-yellow { background: #DDF093; --text: #33380f; --muted: #5a5f2a; --border: #b9c95f; }
-  .panel.panel-peach { background: #F6D0B1; --text: #4a2d16; --muted: #7a5636; --border: #dba97d; }
-  .panel.panel-rose { background: #CE4760; --text: #ffffff; --muted: #f7d4dc; --border: #e58a9a; }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17181a;
+      --card: #232427;
+      --text: #ececec;
+      --muted: #9a9a9a;
+      --border: #35373b;
+      --accent: #5fae86;
+      --accent-text: #0d0d0d;
+      --badge-free: #5fae86;
+      --badge-paid: #d19a5a;
+      --danger: #e07070;
+    }
+  }
   * { box-sizing: border-box; }
   body {
     margin: 0;
@@ -65,14 +49,6 @@
   .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 20px; }
   .panel {
     background: var(--card);
-    /* Must be set explicitly here (not just left to inherit from body) -
-       --text is overridden per panel-* class below, but a plain inherited
-       `color` only ever copies the ALREADY-RESOLVED value from the nearest
-       ancestor that sets `color` itself. Without this, every panel's text
-       stayed body's white regardless of its own --text override (only
-       .panel-rose happened to look right, since its override is white too;
-       mint/yellow/peach were silently unreadable). */
-    color: var(--text);
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 16px;
@@ -86,7 +62,7 @@
     border-radius: 8px;
     border: 1px solid var(--border);
     background: var(--bg);
-    color: var(--well-text);
+    color: var(--text);
     font-size: 0.95rem;
   }
   textarea { min-height: 60px; resize: vertical; }
@@ -108,25 +84,13 @@
     padding: 4px 12px;
     font-size: 0.8rem;
     cursor: pointer;
-    /* Always a white chip (var(--card)) regardless of which panel it's in
-       (see .panel-* above), so --text is reset locally too - otherwise a
-       chip inside .panel-rose would inherit white panel text onto its own
-       white background and vanish. Same fix as .card below. */
-    --text: #1b1b1b;
     color: var(--text);
     background: var(--card);
   }
   .chip.active { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
   .cards { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
   .card {
-    /* Same reasoning as .chip above - a card is always white, so its text
-       variables are reset locally rather than inherited from whichever
-       panel color it happens to be sitting in. */
-    --text: #1b1b1b;
-    --muted: #6b6b6b;
-    --border: #e2e0da;
     background: var(--card);
-    color: var(--text);
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 14px 16px;
@@ -151,7 +115,6 @@
     display: inline-block;
     font-size: 0.75rem;
     background: var(--bg);
-    color: var(--well-text);
     border: 1px solid var(--border);
     border-radius: 999px;
     padding: 2px 8px;
@@ -160,7 +123,7 @@
   .notes { margin-top: 8px; font-size: 0.85rem; white-space: pre-wrap; }
   .card-actions { margin-top: 10px; display: flex; gap: 8px; }
   .empty { color: var(--muted); font-size: 0.9rem; padding: 20px 0; text-align: center; }
-  code { background: var(--bg); color: var(--well-text); border: 1px solid var(--border); border-radius: 6px; padding: 2px 6px; word-break: break-all; }
+  code { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 2px 6px; word-break: break-all; }
   .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
   .cal-header h2 { margin: 0; }
   .cal-nav { cursor: pointer; font-size: 1.2rem; padding: 2px 10px; user-select: none; color: var(--muted); }
@@ -183,7 +146,6 @@
   .cal-cell:not(.empty) { cursor: pointer; }
   .cal-cell.today { border-color: var(--accent); border-width: 2px; }
   .cal-cell.selected { outline: 2px solid var(--accent); background: var(--bg); }
-  .cal-cell.selected .cal-daynum { color: var(--well-muted); }
   .cal-daynum { color: var(--muted); margin-bottom: 2px; }
   .cal-pill {
     background: var(--accent);
@@ -239,14 +201,13 @@
   .list-row.pending:hover { background: none; }
   .status-box {
     background: var(--bg);
-    color: var(--well-text);
     border: 1px solid var(--border);
     border-radius: 10px;
     padding: 12px 14px;
     font-size: 0.85rem;
   }
   .status-box .status-title { font-weight: 600; margin-bottom: 4px; }
-  .status-box .meta { font-size: 0.85rem; color: var(--well-muted); line-height: 1.5; margin: 6px 0; }
+  .status-box .meta { font-size: 0.85rem; color: var(--muted); line-height: 1.5; margin: 6px 0; }
   .spinner {
     display: inline-block;
     width: 12px;
@@ -270,7 +231,7 @@
 </div>
 <div id="check-status" style="font-size:0.8rem; color:var(--muted); margin-bottom:20px;"></div>
 
-<div class="panel panel-mint">
+<div class="panel">
   <h2>Add an event</h2>
   <label for="add-url">Event URL</label>
   <input type="url" id="add-url" placeholder="https://example.com/festival">
@@ -298,7 +259,7 @@
   <div id="add-status" style="display:none; margin-top:12px;"></div>
 </div>
 
-<div class="panel panel-yellow">
+<div class="panel">
   <div class="cal-header">
     <span class="cal-nav" id="cal-prev">‹</span>
     <h2 id="cal-title" title="Tap to jump to a month"></h2>
@@ -311,13 +272,13 @@
   <div class="calendar-grid" id="calendar-grid"></div>
 </div>
 
-<div class="panel panel-peach" id="day-section" style="display:none;">
+<div class="panel" id="day-section" style="display:none;">
   <h2 id="day-section-title"></h2>
   <div class="cards" id="day-cards"></div>
   <div class="empty" id="day-empty" style="display:none;"></div>
 </div>
 
-<div class="panel panel-rose">
+<div class="panel">
   <h2>Filter</h2>
   <div class="row" style="margin-top:0; margin-bottom:14px;">
     <input type="text" id="search-box" placeholder="Search all events…" style="flex:1; width:auto; margin-top:0;">
@@ -343,13 +304,13 @@
   </div>
 </div>
 
-<div class="panel panel-mint">
+<div class="panel">
   <h2>No date set</h2>
   <div class="cards" id="no-date-cards"></div>
   <div class="empty" id="no-date-empty" style="display:none;"></div>
 </div>
 
-<div class="panel panel-yellow">
+<div class="panel">
   <div class="accordion-header" id="month-events-header">
     <h2 id="cards-month-label"></h2>
     <span class="accordion-arrow" id="month-events-arrow">▸</span>
@@ -360,7 +321,7 @@
   </div>
 </div>
 
-<div class="panel panel-peach" style="margin-top:20px;">
+<div class="panel" style="margin-top:20px;">
   <div class="accordion-header" id="all-events-header">
     <h2>All events</h2>
     <span class="accordion-arrow" id="all-events-arrow">▸</span>
@@ -368,7 +329,7 @@
   <div class="accordion-body" id="all-events-body" style="display:none;"></div>
 </div>
 
-<div class="panel panel-rose" style="margin-top:20px;">
+<div class="panel" style="margin-top:20px;">
   <h2>Subscribe to this calendar</h2>
   <p style="font-size:0.85rem; color:var(--muted); line-height:1.5;">
     One-time setup: open Google Calendar → <strong>Other calendars</strong> → <strong>+</strong>
@@ -378,7 +339,7 @@
 </div>
 
 <div id="password-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); align-items:center; justify-content:center;">
-  <div class="panel panel-mint" style="max-width:320px; margin:0;">
+  <div class="panel" style="max-width:320px; margin:0;">
     <h2>App password</h2>
     <p style="font-size:0.85rem; color:var(--muted);">Needed once to add/edit/delete events on this device.</p>
     <!-- type="text" + -webkit-text-security (not type="password") deliberately -
