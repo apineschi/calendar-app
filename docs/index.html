@@ -8,34 +8,40 @@
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<meta name="theme-color" content="#4a2f7a">
+<meta name="theme-color" content="#a56bd8">
 <style>
+  /* A deliberate fixed palette (not tied to system light/dark mode). --bg is
+     a purple given directly (#A56BD8 = HSL(271.9°, 58.3%, 63.3%)); the other
+     two hues are proper color-harmony relationships computed from it, not
+     eyeballed: --panel-bg (#F2AB5A, H≈31.9°) is the TRIADIC partner (the
+     purple's hue +120°) and --accent (#EDF25A, H≈61.9°) is the
+     SPLIT-COMPLEMENT (the purple's true 180° complement, 91.9°, shifted -30°
+     to land just past pure yellow instead of in lime/chartreuse territory -
+     the straight complement was tried first and rejected as "sickly").
+
+     Text colors were computed from real WCAG contrast math, not guessed,
+     and one surprising result shaped the structure below: this purple is
+     light enough (L=63%) that DARK text reads better on it than white does
+     (4.67:1 vs 3.69:1) - the opposite of the darker purples used earlier in
+     this project. That also means --text (#1b1b1b) clears 4.5:1 against
+     every background in play here (purple, orange, yellow alike), so unlike
+     the previous palette it does NOT need a per-panel override anymore -
+     only --muted does, since a muted/dimmed tone that reads well on light
+     purple and one that reads well on orange are genuinely different
+     colors (checked, not assumed). */
   :root {
-    color-scheme: light dark;
-    --bg: #f6f5f2;
+    color-scheme: light;
+    --bg: #a56bd8;
+    --panel-bg: #f2ab5a;
     --card: #ffffff;
     --text: #1b1b1b;
-    --muted: #6b6b6b;
-    --border: #e2e0da;
-    --accent: #2f6f4f;
-    --accent-text: #ffffff;
+    --muted: #1f1728;
+    --border: #8a52c0;
+    --accent: #edf25a;
+    --accent-text: #1b1b1b;
     --badge-free: #2f6f4f;
     --badge-paid: #7a4b1c;
     --danger: #a33;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #17181a;
-      --card: #232427;
-      --text: #ececec;
-      --muted: #9a9a9a;
-      --border: #35373b;
-      --accent: #5fae86;
-      --accent-text: #0d0d0d;
-      --badge-free: #5fae86;
-      --badge-paid: #d19a5a;
-      --danger: #e07070;
-    }
   }
   * { box-sizing: border-box; }
   body {
@@ -48,7 +54,10 @@
   h1 { font-size: 1.4rem; margin: 0 0 4px; }
   .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 20px; }
   .panel {
-    background: var(--card);
+    background: var(--panel-bg);
+    --muted: #5c3808;
+    --border: #d98a2e;
+    color: var(--text);
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 16px;
@@ -61,7 +70,7 @@
     padding: 8px 10px;
     border-radius: 8px;
     border: 1px solid var(--border);
-    background: var(--bg);
+    background: var(--card);
     color: var(--text);
     font-size: 0.95rem;
   }
@@ -114,8 +123,12 @@
   .tags span {
     display: inline-block;
     font-size: 0.75rem;
-    background: var(--bg);
-    border: 1px solid var(--border);
+    /* Unlike the other var(--card) surfaces below, this one sits ON a
+       .card, not directly on a .panel - so it needs to be distinct from
+       white, not just distinct from the panel's yellow. */
+    background: #eef0ea;
+    color: #1b1b1b;
+    border: 1px solid #d8dbd1;
     border-radius: 999px;
     padding: 2px 8px;
     margin: 0 4px 4px 0;
@@ -123,7 +136,7 @@
   .notes { margin-top: 8px; font-size: 0.85rem; white-space: pre-wrap; }
   .card-actions { margin-top: 10px; display: flex; gap: 8px; }
   .empty { color: var(--muted); font-size: 0.9rem; padding: 20px 0; text-align: center; }
-  code { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 2px 6px; word-break: break-all; }
+  code { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 2px 6px; word-break: break-all; }
   .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
   .cal-header h2 { margin: 0; }
   .cal-nav { cursor: pointer; font-size: 1.2rem; padding: 2px 10px; user-select: none; color: var(--muted); }
@@ -145,7 +158,7 @@
   .cal-cell.empty { border-color: transparent; }
   .cal-cell:not(.empty) { cursor: pointer; }
   .cal-cell.today { border-color: var(--accent); border-width: 2px; }
-  .cal-cell.selected { outline: 2px solid var(--accent); background: var(--bg); }
+  .cal-cell.selected { outline: 2px solid var(--accent); background: var(--card); }
   .cal-daynum { color: var(--muted); margin-bottom: 2px; }
   .cal-pill {
     background: var(--accent);
@@ -185,7 +198,7 @@
     cursor: pointer;
   }
   .list-row:last-child { border-bottom: none; }
-  .list-row:hover { background: var(--bg); }
+  .list-row:hover { background: var(--card); }
   .list-row-title {
     /* Own line rather than sharing a row with the date - truncation-based
        fixes kept fighting each other across screen sizes/font settings, so
@@ -200,7 +213,8 @@
   .list-row.pending { cursor: default; }
   .list-row.pending:hover { background: none; }
   .status-box {
-    background: var(--bg);
+    background: var(--card);
+    color: var(--text);
     border: 1px solid var(--border);
     border-radius: 10px;
     padding: 12px 14px;
