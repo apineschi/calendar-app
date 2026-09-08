@@ -143,7 +143,9 @@
     font-size: 0.75rem;
   }
   .cal-cell.empty { border-color: transparent; }
+  .cal-cell:not(.empty) { cursor: pointer; }
   .cal-cell.today { border-color: var(--accent); border-width: 2px; }
+  .cal-cell.selected { outline: 2px solid var(--accent); background: var(--bg); }
   .cal-daynum { color: var(--muted); margin-bottom: 2px; }
   .cal-pill {
     background: var(--accent);
@@ -166,7 +168,6 @@
   .filter-label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
   .card-url { display: block; margin-top: 4px; color: inherit; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .card-url:hover { text-decoration: underline; }
-  .cal-cell.highlight { outline: 2px solid var(--accent); }
   .accordion-header {
     display: flex;
     align-items: center;
@@ -179,10 +180,6 @@
   .accordion-arrow.open { transform: rotate(90deg); }
   .accordion-body { margin-top: 12px; }
   .list-row {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 10px;
     padding: 8px 4px;
     border-bottom: 1px solid var(--border);
     cursor: pointer;
@@ -190,17 +187,16 @@
   .list-row:last-child { border-bottom: none; }
   .list-row:hover { background: var(--bg); }
   .list-row-title {
-    /* Same min-width:auto default as the calendar grid cells above - without
-       this, a long title won't actually shrink/truncate and instead pushes
-       the date (flex-shrink:0, below) into overlapping it. */
-    flex: 1;
-    min-width: 0;
+    /* Own line rather than sharing a row with the date - truncation-based
+       fixes kept fighting each other across screen sizes/font settings, so
+       just stacking them removes the collision outright. */
+    display: block;
     font-size: 0.9rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .list-row-date { font-size: 0.8rem; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+  .list-row-date { display: block; font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
   .list-row.pending { cursor: default; }
   .list-row.pending:hover { background: none; }
   .status-box {
@@ -276,6 +272,12 @@
   <div class="calendar-grid" id="calendar-grid"></div>
 </div>
 
+<div class="panel" id="day-section" style="display:none;">
+  <h2 id="day-section-title"></h2>
+  <div class="cards" id="day-cards"></div>
+  <div class="empty" id="day-empty" style="display:none;"></div>
+</div>
+
 <div class="panel">
   <h2>Filter</h2>
   <div class="row" style="margin-top:0; margin-bottom:14px;">
@@ -308,9 +310,16 @@
   <div class="empty" id="no-date-empty" style="display:none;"></div>
 </div>
 
-<div class="filter-label" id="cards-month-label" style="margin: 0 0 8px 4px;"></div>
-<div class="cards" id="cards"></div>
-<div class="empty" id="empty-state" style="display:none;"></div>
+<div class="panel">
+  <div class="accordion-header" id="month-events-header">
+    <h2 id="cards-month-label"></h2>
+    <span class="accordion-arrow" id="month-events-arrow">▸</span>
+  </div>
+  <div class="accordion-body" id="month-events-body" style="display:none;">
+    <div class="cards" id="cards"></div>
+    <div class="empty" id="empty-state" style="display:none;"></div>
+  </div>
+</div>
 
 <div class="panel" style="margin-top:20px;">
   <div class="accordion-header" id="all-events-header">
@@ -356,6 +365,8 @@ let filterFree = null; // null | true | false
 let filterRegion = null; // null | "uk" | "international"
 let searchQuery = "";
 let allEventsOpen = false;
+let monthEventsOpen = false;
+let selectedDate = null; // "YYYY-MM-DD" or null
 let calendarMonth = new Date();
 calendarMonth.setDate(1);
 
@@ -431,25 +442,53 @@ function renderCalendar() {
     const pills = dayEvents
       .map((e) => `<div class="cal-pill" data-id="${esc(e.id)}" title="${esc(e.name)}">${esc(e.name)}</div>`)
       .join("");
-    html += `<div class="cal-cell ${dateStr === todayStr ? "today" : ""}" data-date="${dateStr}"><div class="cal-daynum">${d}</div>${pills}</div>`;
+    const classes = ["cal-cell"];
+    if (dateStr === todayStr) classes.push("today");
+    if (dateStr === selectedDate) classes.push("selected");
+    html += `<div class="${classes.join(" ")}" data-date="${dateStr}"><div class="cal-daynum">${d}</div>${pills}</div>`;
   }
 
   const grid = document.getElementById("calendar-grid");
   grid.innerHTML = html;
-  grid.querySelectorAll(".cal-pill").forEach((pill) => {
-    pill.addEventListener("click", () => {
-      const cell = pill.closest(".cal-cell");
-      if (cell) {
-        cell.classList.add("highlight");
-        setTimeout(() => cell.classList.remove("highlight"), 1500);
-      }
-      const card = document.querySelector(`.card[data-id="${CSS.escape(pill.dataset.id)}"]`);
-      if (!card) return;
-      card.scrollIntoView({ behavior: "smooth", block: "center" });
-      card.style.outline = `2px solid var(--accent)`;
-      setTimeout(() => { card.style.outline = ""; }, 1500);
-    });
+  // Listening on the whole cell (not just .cal-pill) means tapping anywhere
+  // in a day - the pill text or the empty space around it - selects that
+  // day; a pill click bubbles up to its parent cell's listener the same way.
+  grid.querySelectorAll(".cal-cell[data-date]").forEach((cell) => {
+    cell.addEventListener("click", () => selectDay(cell.dataset.date));
   });
+}
+
+// Selecting a day highlights its cell (persistently, until a different day
+// is picked or this same one is tapped again to deselect) and populates the
+// "Events on this day" section below the calendar - replacing the earlier
+// approach of scrolling down into the (now collapsed-by-default) month list.
+function selectDay(dateStr) {
+  selectedDate = selectedDate === dateStr ? null : dateStr;
+  render();
+  if (selectedDate) {
+    requestAnimationFrame(() => {
+      document.getElementById("day-section").scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+}
+
+function renderDaySection() {
+  const section = document.getElementById("day-section");
+  if (!selectedDate) {
+    section.style.display = "none";
+    return;
+  }
+  section.style.display = "block";
+  const d = new Date(`${selectedDate}T00:00:00`);
+  document.getElementById("day-section-title").textContent =
+    `Events on ${d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}`;
+  const list = eventsOnDate(selectedDate).filter(passesCommonFilters);
+  renderCardsInto(
+    document.getElementById("day-cards"),
+    document.getElementById("day-empty"),
+    list,
+    "No tracked events on this day."
+  );
 }
 
 function hopToEvent(id) {
@@ -487,6 +526,11 @@ function renderAllEventsList() {
 document.getElementById("all-events-header").addEventListener("click", () => {
   allEventsOpen = !allEventsOpen;
   renderAllEventsList();
+});
+
+document.getElementById("month-events-header").addEventListener("click", () => {
+  monthEventsOpen = !monthEventsOpen;
+  renderMonthEventsSection();
 });
 
 document.getElementById("cal-prev").addEventListener("click", () => {
@@ -598,10 +642,10 @@ function buildCardHtml(e) {
         <input type="text" class="f-name" value="${esc(e.name)}">
         <label>Location</label>
         <input type="text" class="f-location" value="${esc(e.location || "")}">
-        <label>Start date (YYYY-MM-DD)</label>
-        <input type="text" class="f-start" value="${esc(e.start_date || "")}">
-        <label>End date (YYYY-MM-DD)</label>
-        <input type="text" class="f-end" value="${esc(e.end_date || "")}">
+        <label>Start date</label>
+        <input type="date" class="f-start" value="${esc(e.start_date || "")}">
+        <label>End date</label>
+        <input type="date" class="f-end" value="${esc(e.end_date || "")}">
         <label>Free or paid</label>
         <select class="f-free">
           <option value="" ${e.is_free == null ? "selected" : ""}>Unknown</option>
@@ -684,8 +728,43 @@ function renderCheckStatus() {
   el.textContent = `Last checked: ${lastText}  ·  Next scheduled check: ${nextText}`;
 }
 
+// A search query force-opens this section (without touching the persisted
+// monthEventsOpen toggle) since the results would otherwise be hidden
+// behind a collapsed accordion right when they're most wanted - closing
+// the search reverts to whatever the toggle was set to beforehand.
+function renderMonthEventsSection() {
+  const allEvents = Object.values(events);
+  const commonFiltered = allEvents.filter(passesCommonFilters);
+  const dated = commonFiltered.filter((e) => e.start_date);
+
+  let mainList, label;
+  if (searchQuery) {
+    mainList = dated;
+    label = `Search results for "${searchQuery}"`;
+  } else {
+    mainList = dated.filter((e) => eventOverlapsMonth(e, calendarMonth.getFullYear(), calendarMonth.getMonth()));
+    label = `Events in ${calendarMonth.toLocaleDateString(undefined, { year: "numeric", month: "long" })}`;
+  }
+  mainList.sort((a, b) => a.start_date.localeCompare(b.start_date));
+
+  document.getElementById("cards-month-label").textContent = label;
+
+  const effectiveOpen = monthEventsOpen || !!searchQuery;
+  document.getElementById("month-events-arrow").classList.toggle("open", effectiveOpen);
+  document.getElementById("month-events-body").style.display = effectiveOpen ? "block" : "none";
+  if (!effectiveOpen) return;
+
+  renderCardsInto(
+    document.getElementById("cards"),
+    document.getElementById("empty-state"),
+    mainList,
+    allEvents.length ? "No events match this month/filter." : "No events tracked yet — add one above."
+  );
+}
+
 function render() {
   renderCalendar();
+  renderDaySection();
   renderAllEventsList();
   renderCheckStatus();
 
@@ -708,16 +787,14 @@ function render() {
     });
   });
 
-  const allEvents = Object.values(events);
-  const commonFiltered = allEvents.filter(passesCommonFilters);
-
   // "No date set" is always global (never month-scoped) - these events
   // have nothing to scope by, and burying them inside whichever month
   // happens to be showing is exactly the confusion this section replaces
   // (an event with no date used to show up "in" every month it was viewed
   // from, e.g. appearing to belong to August just because that's what was
   // on screen).
-  const noDateList = commonFiltered
+  const noDateList = Object.values(events)
+    .filter(passesCommonFilters)
     .filter((e) => !e.start_date)
     .sort((a, b) => a.name.localeCompare(b.name));
   renderCardsInto(
@@ -727,29 +804,7 @@ function render() {
     "Nothing waiting on a date right now."
   );
 
-  // Main section: month-scoped browsing normally, but a search query
-  // searches every dated event regardless of month - searching only within
-  // whatever month happened to be on screen was the bug that made search
-  // look broken (e.g. searching "love" while viewing August found nothing,
-  // since Love Supreme's real date is July 2027).
-  const dated = commonFiltered.filter((e) => e.start_date);
-  let mainList, label;
-  if (searchQuery) {
-    mainList = dated;
-    label = `Search results for "${searchQuery}"`;
-  } else {
-    mainList = dated.filter((e) => eventOverlapsMonth(e, calendarMonth.getFullYear(), calendarMonth.getMonth()));
-    label = `Events in ${calendarMonth.toLocaleDateString(undefined, { year: "numeric", month: "long" })}`;
-  }
-  mainList.sort((a, b) => a.start_date.localeCompare(b.start_date));
-
-  document.getElementById("cards-month-label").textContent = label;
-  renderCardsInto(
-    document.getElementById("cards"),
-    document.getElementById("empty-state"),
-    mainList,
-    allEvents.length ? "No events match this month/filter." : "No events tracked yet — add one above."
-  );
+  renderMonthEventsSection();
 }
 
 function getPassword() {
@@ -798,11 +853,11 @@ async function apiCall(path, body) {
   return data;
 }
 
-// Reveals a specific event's card regardless of any active filter (the
-// whole point of calling this is to see that exact event), scoping the
-// calendar to its month if it has a date, then scrolling to and briefly
-// highlighting both the calendar cell (if applicable) and the card itself.
-// Optionally opens that card's edit form once it's in view.
+// Reveals a specific event regardless of any active filter (the whole
+// point of calling this is to see that exact event): if it has a date,
+// scopes the calendar to its month and selects its day (see selectDay());
+// otherwise scrolls to it in "No date set". Optionally opens its edit form
+// once it's in view.
 function revealEventCard(id, openEdit) {
   const record = events[id];
   filterFree = null;
@@ -812,20 +867,27 @@ function revealEventCard(id, openEdit) {
   document.getElementById("search-box").value = "";
 
   if (record && record.start_date) {
+    // Jumps to the event's month and selects its day - the same day-section
+    // path a tap on the calendar itself goes through - rather than reaching
+    // into the (now collapsed-by-default) month list.
     const d = new Date(`${record.start_date}T00:00:00`);
     calendarMonth = new Date(d.getFullYear(), d.getMonth(), 1);
+    selectedDate = record.start_date;
+    render();
+    requestAnimationFrame(() => {
+      document.getElementById("day-section").scrollIntoView({ behavior: "smooth", block: "start" });
+      const card = document.querySelector(`#day-cards .card[data-id="${CSS.escape(id)}"]`);
+      if (card && openEdit) card.querySelector(".edit-btn").click();
+    });
+    return;
   }
-  render();
 
+  // No date - lives in "No date set", which (unlike the month list) is
+  // always visible, so a simple scroll-and-flash is enough.
+  selectedDate = null;
+  render();
   requestAnimationFrame(() => {
-    if (record && record.start_date) {
-      const cell = document.querySelector(`.cal-cell[data-date="${record.start_date}"]`);
-      if (cell) {
-        cell.classList.add("highlight");
-        setTimeout(() => cell.classList.remove("highlight"), 1500);
-      }
-    }
-    const card = document.querySelector(`.card[data-id="${CSS.escape(id)}"]`);
+    const card = document.querySelector(`#no-date-cards .card[data-id="${CSS.escape(id)}"]`);
     if (!card) return;
     card.scrollIntoView({ behavior: "smooth", block: "center" });
     card.style.outline = `2px solid var(--accent)`;
