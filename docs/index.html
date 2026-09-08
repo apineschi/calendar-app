@@ -128,9 +128,14 @@
   .cal-header h2 { margin: 0; }
   .cal-nav { cursor: pointer; font-size: 1.2rem; padding: 2px 10px; user-select: none; color: var(--muted); }
   .cal-nav:hover { color: var(--text); }
-  .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
   .cal-weekday { font-size: 0.7rem; color: var(--muted); text-align: center; padding-bottom: 4px; }
   .cal-cell {
+    /* Grid items default to min-width:auto, so a long nowrap pill (below)
+       would otherwise force this cell - and the whole grid, and the page -
+       wider than the screen on mobile instead of actually truncating. */
+    min-width: 0;
+    overflow: hidden;
     min-height: 64px;
     border: 1px solid var(--border);
     border-radius: 6px;
@@ -184,7 +189,17 @@
   }
   .list-row:last-child { border-bottom: none; }
   .list-row:hover { background: var(--bg); }
-  .list-row-title { font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .list-row-title {
+    /* Same min-width:auto default as the calendar grid cells above - without
+       this, a long title won't actually shrink/truncate and instead pushes
+       the date (flex-shrink:0, below) into overlapping it. */
+    flex: 1;
+    min-width: 0;
+    font-size: 0.9rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .list-row-date { font-size: 0.8rem; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
   .list-row.pending { cursor: default; }
   .list-row.pending:hover { background: none; }
@@ -215,9 +230,10 @@
 
 <h1>Calendar App</h1>
 <div class="subtitle">Recurring event tracker — add a URL, it checks monthly for next year's date.</div>
-<div class="row" style="margin-top:0; margin-bottom:20px;">
+<div class="row" style="margin-top:0; margin-bottom:8px;">
   <button class="secondary" id="check-now-btn">Check dates now</button>
 </div>
+<div id="check-status" style="font-size:0.8rem; color:var(--muted); margin-bottom:20px;"></div>
 
 <div class="panel">
   <h2>Add an event</h2>
@@ -422,6 +438,11 @@ function renderCalendar() {
   grid.innerHTML = html;
   grid.querySelectorAll(".cal-pill").forEach((pill) => {
     pill.addEventListener("click", () => {
+      const cell = pill.closest(".cal-cell");
+      if (cell) {
+        cell.classList.add("highlight");
+        setTimeout(() => cell.classList.remove("highlight"), 1500);
+      }
       const card = document.querySelector(`.card[data-id="${CSS.escape(pill.dataset.id)}"]`);
       if (!card) return;
       card.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -629,9 +650,44 @@ function renderCardsInto(containerEl, emptyEl, list, emptyMessage) {
   wireCardListeners(containerEl);
 }
 
+// The scan itself always touches every event in one run (main.py, see
+// ARCHITECTURE.md), so the latest last_checked across all events is a good
+// stand-in for "when did the scan last actually run" - no separate
+// "system-wide last run" field needs to exist just for this.
+function computeLastChecked() {
+  const timestamps = Object.values(events).map((e) => e.last_checked).filter(Boolean);
+  if (!timestamps.length) return null;
+  return timestamps.sort().at(-1); // ISO 8601 strings sort correctly as plain strings
+}
+
+// Mirrors .github/workflows/monthly-check.yml's cron: '0 9 1 * *' - 9am UTC
+// on the 1st of every month. Kept here as a literal rather than fetched
+// from GitHub, since there's no read-only API call that's both unauthenticated
+// and doesn't risk rate-limiting on every page load; if that schedule is ever
+// changed in the workflow file, update this to match.
+function computeNextScheduledCheck() {
+  const now = new Date();
+  let next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 9, 0, 0));
+  if (next <= now) {
+    next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 9, 0, 0));
+  }
+  return next;
+}
+
+function renderCheckStatus() {
+  const el = document.getElementById("check-status");
+  const last = computeLastChecked();
+  const lastText = last
+    ? new Date(last).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
+    : "never";
+  const nextText = computeNextScheduledCheck().toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+  el.textContent = `Last checked: ${lastText}  ·  Next scheduled check: ${nextText}`;
+}
+
 function render() {
   renderCalendar();
   renderAllEventsList();
+  renderCheckStatus();
 
   document.querySelectorAll("#pinned-price-filter .chip").forEach((chip) => {
     chip.classList.toggle("active", filterFree === (chip.dataset.free === "true"));

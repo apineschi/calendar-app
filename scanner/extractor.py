@@ -412,6 +412,38 @@ def extract_date_from_text(soup: BeautifulSoup) -> dict:
     return {"start_date": candidates[0].isoformat()}
 
 
+ERROR_PAGE_RE = re.compile(
+    r"\b(403|404|429)\s*[-–—]?\s*forbidden|access\s*denied|are\s*you\s*a\s*(human|robot)|"
+    r"captcha|please\s*verify\s*you|checking\s*your\s*browser|attention\s*required",
+    re.IGNORECASE,
+)
+
+
+def _looks_like_error_page(soup: BeautifulSoup) -> bool:
+    """A real bug, not a hypothetical: feeding a 403/CAPTCHA challenge page's
+    own text to the Workers AI fallback produced a confidently wrong date for
+    womad.co.uk (every fetch tier - plain, browser, even archive.org's own
+    cached crawl - got an error/challenge page instead of the real one, and
+    the model hallucinated a plausible-looking date rather than reporting
+    nothing found, despite being told to). Cheap enough to check up front:
+    an error page's title and text are short and formulaic, so this catches
+    the common cases without needing to be exhaustive - anything genuinely
+    ambiguous still just falls through to the model as before.
+    """
+    title = soup.find("title")
+    if title and ERROR_PAGE_RE.search(title.get_text()):
+        return True
+    text = soup.get_text(" ", strip=True)
+    if len(text) < 200 and ERROR_PAGE_RE.search(text):
+        return True
+    # A meta-refresh-only challenge stub (archive.org's own cached crawl of
+    # womad.co.uk was exactly this: no title, no body text, just a redirect
+    # to a "sgcaptcha" URL) has essentially no visible text at all - a real
+    # event page always has substantially more than this, so treat "barely
+    # anything here" as suspicious on its own, without needing a keyword hit.
+    return len(text) < 40
+
+
 def extract_with_workers_ai(soup: BeautifulSoup) -> dict:
     """Last-resort fallback when structured data and text heuristics both find
     nothing: ask a free Cloudflare Workers AI model to read the page's own
@@ -422,6 +454,9 @@ def extract_with_workers_ai(soup: BeautifulSoup) -> dict:
     account_id = os.environ.get("CLOUDFLARE_ACCOUNT_ID")
     api_token = os.environ.get("CLOUDFLARE_API_TOKEN")
     if not account_id or not api_token:
+        return {}
+
+    if _looks_like_error_page(soup):
         return {}
 
     page_text = soup.get_text(" ", strip=True)[:6000]

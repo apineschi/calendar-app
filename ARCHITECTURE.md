@@ -265,6 +265,18 @@ sites rather than a fixed list of institutions):
    all found no date, against whichever page content is best available (the
    browser-rendered version if step 4 ran); asks a free model to read the
    page's own text and extract the same fields as structured JSON.
+   **A real, confidently-wrong result turned up testing this against
+   `womad.co.uk`**: every fetch tier for that site returns an error/challenge
+   page rather than the real one (see step 4), and the model - shown a 403
+   page's own text - hallucinated a plausible-looking date instead of
+   reporting nothing found, despite the prompt explicitly saying not to
+   guess. `_looks_like_error_page()` now runs before this step and skips the
+   AI call entirely for anything that looks like an error/CAPTCHA page
+   (matched by title/text keywords, or just by having implausibly little
+   text at all - archive.org's own cached crawl of womad.co.uk turned out to
+   be a 169-byte CAPTCHA-redirect stub with no title and no body text,
+   which no keyword list would have caught). Silently trusting a small
+   model's "never guess" instruction wasn't enough on its own.
 6. Anything still missing is left absent from the returned dict. This is the
    expected, common outcome (see the Glastonbury test above) — not a bug to
    fix, and exactly what `scanner/alerts.py` exists to handle.
@@ -340,10 +352,12 @@ same one, are both legitimate and harmless to report together).
 ## Known limitations (MVP)
 
 - **Bot-protected sites can't be scraped at all**: `womad.co.uk` is the
-  known example - it blocks both a plain `requests` call and headless
-  Chromium identically (see step 4 above). No code change here will fix
-  that; the date/location for a site like this has to be entered manually
-  via the dashboard's edit form.
+  known example - it blocks a plain `requests` call, headless Chromium, and
+  even archive.org's own crawler identically (see steps 4-5 above; even
+  `robots.txt` gets the same 403, ruling out fingerprinting - this is a
+  wholesale IP-range block). No code change here will fix that; the
+  date/location for a site like this has to be entered manually via the
+  dashboard's edit form.
 - **The Playwright fallback adds real time to every scan**: launching a real
   browser only happens for events the plain fetch already failed on, but
   for those it's meaningfully slower than a plain HTTP request. Not an
