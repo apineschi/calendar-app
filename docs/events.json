@@ -43,8 +43,8 @@
     "name": "WOMAD Festival",
     "url": "https://womad.co.uk/",
     "location": null,
-    "start_date": "2026-09-01",
-    "end_date": null,
+    "start_date": "2027-07-22",
+    "end_date": "2027-07-25",
     "is_free": false,
     "price_text": null,
     "region": "uk",
@@ -53,11 +53,11 @@
       "festival"
     ],
     "notes": "",
-    "last_known_year": 2026,
+    "last_known_year": 2027,
     "last_checked": "2026-09-04T07:05:05+00:00",
     "alert_sent_for_year": null,
     "calendar_uid": "womad-festival@calendar-app.apineschi",
-    "last_known_month": 9,
+    "last_known_month": 7,
     "went_stale_notified_for_year": null
   },
   "reading-festival": {
