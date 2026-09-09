@@ -123,5 +123,26 @@
     "alert_sent_for_year": null,
     "went_stale_notified_for_year": null,
     "calendar_uid": "leyton-arts-festival@calendar-app.apineschi"
+  },
+  "v-a-digital-design-weekend": {
+    "id": "v-a-digital-design-weekend",
+    "name": "V&A Digital Design Weekend",
+    "url": "https://www.vam.ac.uk/event/xxlgboBxGNl/digital-design-weekend-2026",
+    "location": null,
+    "start_date": null,
+    "end_date": null,
+    "is_free": true,
+    "price_text": null,
+    "region": "uk",
+    "tags": [
+      "art"
+    ],
+    "notes": "",
+    "last_known_year": null,
+    "last_known_month": null,
+    "last_checked": null,
+    "alert_sent_for_year": null,
+    "went_stale_notified_for_year": null,
+    "calendar_uid": "v-a-digital-design-weekend@calendar-app.apineschi"
   }
 }
