@@ -146,5 +146,26 @@
     "alert_sent_for_year": null,
     "went_stale_notified_for_year": null,
     "calendar_uid": "v-a-digital-design-weekend@calendar-app.apineschi"
+  },
+  "goblin-market": {
+    "id": "goblin-market",
+    "name": "Goblin Market",
+    "url": "https://stanleyarts.org/event/goblin-market/",
+    "location": null,
+    "start_date": null,
+    "end_date": null,
+    "is_free": true,
+    "price_text": null,
+    "region": "uk",
+    "tags": [
+      "market"
+    ],
+    "notes": "",
+    "last_known_year": null,
+    "last_known_month": null,
+    "last_checked": null,
+    "alert_sent_for_year": null,
+    "went_stale_notified_for_year": null,
+    "calendar_uid": "goblin-market@calendar-app.apineschi"
   }
 }
