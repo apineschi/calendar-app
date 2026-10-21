@@ -167,5 +167,27 @@
     "alert_sent_for_year": null,
     "went_stale_notified_for_year": null,
     "calendar_uid": "goblin-market@calendar-app.apineschi"
+  },
+  "farm-shop-and-deli-show": {
+    "id": "farm-shop-and-deli-show",
+    "name": "Farm Shop and Deli Show",
+    "url": "https://www.farmshopanddelishow.co.uk/",
+    "location": null,
+    "start_date": null,
+    "end_date": null,
+    "is_free": false,
+    "price_text": null,
+    "region": "uk",
+    "tags": [
+      "food",
+      "market"
+    ],
+    "notes": "",
+    "last_known_year": null,
+    "last_known_month": null,
+    "last_checked": null,
+    "alert_sent_for_year": null,
+    "went_stale_notified_for_year": null,
+    "calendar_uid": "farm-shop-and-deli-show@calendar-app.apineschi"
   }
 }
