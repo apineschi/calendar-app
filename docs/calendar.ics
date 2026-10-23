@@ -1,57 +1,57 @@
 BEGIN:VCALENDAR
-VERSION:2.0
 PRODID:-//calendar-app//apineschi//
+VERSION:2.0
 BEGIN:VEVENT
+UID:lovesupremefestival-com@calendar-app.apineschi
 SUMMARY:Love Supreme Jazz Festival
 DTSTART;VALUE=DATE:20270702
 DTEND;VALUE=DATE:20270705
-DTSTAMP:20261021T125049Z
-UID:lovesupremefestival-com@calendar-app.apineschi
+DTSTAMP:20261023T071536Z
+LOCATION:Glynde Place, East Sussex
 DESCRIPTION:https://lovesupremefestival.com/
-LOCATION:Glynde Place\, East Sussex
 END:VEVENT
 BEGIN:VEVENT
+UID:empire@calendar-app.apineschi
 SUMMARY:Empire LARP
 DTSTART;VALUE=DATE:20270423
 DTEND;VALUE=DATE:20270426
-DTSTAMP:20261021T125049Z
-UID:empire@calendar-app.apineschi
-DESCRIPTION:https://www.profounddecisions.co.uk
+DTSTAMP:20261023T071536Z
 LOCATION:Spring Equinox
+DESCRIPTION:https://www.profounddecisions.co.uk
 END:VEVENT
 BEGIN:VEVENT
+UID:womad-festival@calendar-app.apineschi
 SUMMARY:WOMAD Festival
 DTSTART;VALUE=DATE:20270722
 DTEND;VALUE=DATE:20270726
-DTSTAMP:20261021T125049Z
-UID:womad-festival@calendar-app.apineschi
+DTSTAMP:20261023T071536Z
 DESCRIPTION:https://womad.co.uk/
 END:VEVENT
 BEGIN:VEVENT
+UID:reading-festival@calendar-app.apineschi
 SUMMARY:Reading Festival
 DTSTART;VALUE=DATE:20270826
 DTEND;VALUE=DATE:20270830
-DTSTAMP:20261021T125049Z
-UID:reading-festival@calendar-app.apineschi
+DTSTAMP:20261023T071536Z
+LOCATION:Richfield Avenue, Reading
 DESCRIPTION:https://www.readingfestival.com/
-LOCATION:Richfield Avenue\, Reading
 END:VEVENT
 BEGIN:VEVENT
+UID:goblin-market@calendar-app.apineschi
 SUMMARY:Goblin Market
 DTSTART;VALUE=DATE:20261018
 DTEND;VALUE=DATE:20261019
-DTSTAMP:20261021T125049Z
-UID:goblin-market@calendar-app.apineschi
-DESCRIPTION:Free\nhttps://stanleyarts.org/event/goblin-market/
+DTSTAMP:20261023T071536Z
 LOCATION:Stanley Arts
+DESCRIPTION:Free\nhttps://stanleyarts.org/event/goblin-market/
 END:VEVENT
 BEGIN:VEVENT
+UID:farm-shop-and-deli-show@calendar-app.apineschi
 SUMMARY:Farm Shop and Deli Show
 DTSTART;VALUE=DATE:20270412
 DTEND;VALUE=DATE:20270415
-DTSTAMP:20261021T125049Z
-UID:farm-shop-and-deli-show@calendar-app.apineschi
+DTSTAMP:20261023T071536Z
+LOCATION:NEC, Marston Green, Birmingham
 DESCRIPTION:https://www.farmshopanddelishow.co.uk/
-LOCATION:NEC\, Marston Green\, Birmingham
 END:VEVENT
 END:VCALENDAR
