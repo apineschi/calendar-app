@@ -189,5 +189,28 @@
     "alert_sent_for_year": null,
     "went_stale_notified_for_year": null,
     "calendar_uid": "farm-shop-and-deli-show@calendar-app.apineschi"
+  },
+  "shake-the-high-road-leyton-festival": {
+    "id": "shake-the-high-road-leyton-festival",
+    "name": "Shake The High Road Leyton Festival",
+    "url": "https://tickets.shakethehighroad.com/events/shakethehighroad/2449614",
+    "location": null,
+    "start_date": null,
+    "end_date": null,
+    "is_free": false,
+    "price_text": null,
+    "region": "uk",
+    "tags": [
+      "festival",
+      "music",
+      "food"
+    ],
+    "notes": "",
+    "last_known_year": null,
+    "last_known_month": null,
+    "last_checked": null,
+    "alert_sent_for_year": null,
+    "went_stale_notified_for_year": null,
+    "calendar_uid": "shake-the-high-road-leyton-festival@calendar-app.apineschi"
   }
 }
