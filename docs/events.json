@@ -234,5 +234,27 @@
     "alert_sent_for_year": null,
     "went_stale_notified_for_year": null,
     "calendar_uid": "royal-academy-summer-exhibition@calendar-app.apineschi"
+  },
+  "imprint-art-fair": {
+    "id": "imprint-art-fair",
+    "name": "Imprint Art Fair",
+    "url": "https://imprintartfair.com",
+    "location": null,
+    "start_date": null,
+    "end_date": null,
+    "is_free": false,
+    "price_text": null,
+    "region": "uk",
+    "tags": [
+      "art",
+      "exhibition"
+    ],
+    "notes": "Previously Woolwich Contemporary Print Fair",
+    "last_known_year": null,
+    "last_known_month": null,
+    "last_checked": null,
+    "alert_sent_for_year": null,
+    "went_stale_notified_for_year": null,
+    "calendar_uid": "imprint-art-fair@calendar-app.apineschi"
   }
 }
