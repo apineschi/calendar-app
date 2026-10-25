@@ -212,5 +212,27 @@
     "alert_sent_for_year": null,
     "went_stale_notified_for_year": null,
     "calendar_uid": "shake-the-high-road-leyton-festival@calendar-app.apineschi"
+  },
+  "royal-academy-summer-exhibition": {
+    "id": "royal-academy-summer-exhibition",
+    "name": "Royal Academy Summer Exhibition",
+    "url": "https://www.royalacademy.org.uk/exhibition/summer-exhibition-2027",
+    "location": null,
+    "start_date": null,
+    "end_date": null,
+    "is_free": true,
+    "price_text": null,
+    "region": "uk",
+    "tags": [
+      "art",
+      "exhibition"
+    ],
+    "notes": "",
+    "last_known_year": null,
+    "last_known_month": null,
+    "last_checked": null,
+    "alert_sent_for_year": null,
+    "went_stale_notified_for_year": null,
+    "calendar_uid": "royal-academy-summer-exhibition@calendar-app.apineschi"
   }
 }
