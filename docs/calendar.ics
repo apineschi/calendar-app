@@ -6,7 +6,7 @@ UID:lovesupremefestival-com@calendar-app.apineschi
 SUMMARY:Love Supreme Jazz Festival
 DTSTART;VALUE=DATE:20270702
 DTEND;VALUE=DATE:20270705
-DTSTAMP:20261025T111958Z
+DTSTAMP:20261025T115059Z
 LOCATION:Glynde Place, East Sussex
 DESCRIPTION:https://lovesupremefestival.com/
 END:VEVENT
@@ -15,7 +15,7 @@ UID:empire@calendar-app.apineschi
 SUMMARY:Empire LARP
 DTSTART;VALUE=DATE:20270423
 DTEND;VALUE=DATE:20270426
-DTSTAMP:20261025T111958Z
+DTSTAMP:20261025T115059Z
 LOCATION:Spring Equinox
 DESCRIPTION:https://www.profounddecisions.co.uk
 END:VEVENT
@@ -24,7 +24,7 @@ UID:womad-festival@calendar-app.apineschi
 SUMMARY:WOMAD Festival
 DTSTART;VALUE=DATE:20270722
 DTEND;VALUE=DATE:20270726
-DTSTAMP:20261025T111958Z
+DTSTAMP:20261025T115059Z
 DESCRIPTION:https://womad.co.uk/
 END:VEVENT
 BEGIN:VEVENT
@@ -32,7 +32,7 @@ UID:reading-festival@calendar-app.apineschi
 SUMMARY:Reading Festival
 DTSTART;VALUE=DATE:20270826
 DTEND;VALUE=DATE:20270830
-DTSTAMP:20261025T111958Z
+DTSTAMP:20261025T115059Z
 LOCATION:Richfield Avenue, Reading
 DESCRIPTION:https://www.readingfestival.com/
 END:VEVENT
@@ -41,7 +41,7 @@ UID:goblin-market@calendar-app.apineschi
 SUMMARY:Goblin Market
 DTSTART;VALUE=DATE:20261018
 DTEND;VALUE=DATE:20261019
-DTSTAMP:20261025T111958Z
+DTSTAMP:20261025T115059Z
 LOCATION:Stanley Arts
 DESCRIPTION:Free\nhttps://stanleyarts.org/event/goblin-market/
 END:VEVENT
@@ -50,7 +50,7 @@ UID:farm-shop-and-deli-show@calendar-app.apineschi
 SUMMARY:Farm Shop and Deli Show
 DTSTART;VALUE=DATE:20270412
 DTEND;VALUE=DATE:20270415
-DTSTAMP:20261025T111958Z
+DTSTAMP:20261025T115059Z
 LOCATION:NEC, Marston Green, Birmingham
 DESCRIPTION:https://www.farmshopanddelishow.co.uk/
 END:VEVENT
@@ -59,7 +59,7 @@ UID:shake-the-high-road-leyton-festival@calendar-app.apineschi
 SUMMARY:Shake The High Road Leyton Festival
 DTSTART;VALUE=DATE:20270508
 DTEND;VALUE=DATE:20270510
-DTSTAMP:20261025T111958Z
+DTSTAMP:20261025T115059Z
 LOCATION:Multiple Venues across Leytonstone (London E11), GB
 DESCRIPTION:GBP 32\nhttps://tickets.shakethehighroad.com/events/shakethehighroad/2449614
 END:VEVENT
@@ -68,7 +68,15 @@ UID:royal-academy-summer-exhibition@calendar-app.apineschi
 SUMMARY:Royal Academy Summer Exhibition
 DTSTART;VALUE=DATE:20270518
 DTEND;VALUE=DATE:20270816
-DTSTAMP:20261025T111958Z
+DTSTAMP:20261025T115059Z
 DESCRIPTION:Free\nhttps://www.royalacademy.org.uk/exhibition/summer-exhibition-2027
+END:VEVENT
+BEGIN:VEVENT
+UID:imprint-art-fair@calendar-app.apineschi
+SUMMARY:Imprint Art Fair
+DTSTART;VALUE=DATE:20261029
+DTEND;VALUE=DATE:20261102
+DTSTAMP:20261025T115059Z
+DESCRIPTION:Previously Woolwich Contemporary Print Fair\nhttps://imprintartfair.com
 END:VEVENT
 END:VCALENDAR
