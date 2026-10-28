@@ -1,82 +1,95 @@
 BEGIN:VCALENDAR
-PRODID:-//calendar-app//apineschi//
 VERSION:2.0
+PRODID:-//calendar-app//apineschi//
 BEGIN:VEVENT
-UID:lovesupremefestival-com@calendar-app.apineschi
 SUMMARY:Love Supreme Jazz Festival
 DTSTART;VALUE=DATE:20270702
 DTEND;VALUE=DATE:20270705
-DTSTAMP:20261028T170417Z
-LOCATION:Glynde Place, East Sussex
+DTSTAMP:20261028T170510Z
+UID:lovesupremefestival-com@calendar-app.apineschi
 DESCRIPTION:https://lovesupremefestival.com/
+LOCATION:Glynde Place\, East Sussex
 END:VEVENT
 BEGIN:VEVENT
-UID:empire@calendar-app.apineschi
 SUMMARY:Empire LARP
 DTSTART;VALUE=DATE:20270423
 DTEND;VALUE=DATE:20270426
-DTSTAMP:20261028T170417Z
-LOCATION:Spring Equinox
+DTSTAMP:20261028T170510Z
+UID:empire@calendar-app.apineschi
 DESCRIPTION:https://www.profounddecisions.co.uk
+LOCATION:Spring Equinox
 END:VEVENT
 BEGIN:VEVENT
-UID:womad-festival@calendar-app.apineschi
 SUMMARY:WOMAD Festival
 DTSTART;VALUE=DATE:20270722
 DTEND;VALUE=DATE:20270726
-DTSTAMP:20261028T170417Z
+DTSTAMP:20261028T170510Z
+UID:womad-festival@calendar-app.apineschi
 DESCRIPTION:https://womad.co.uk/
 END:VEVENT
 BEGIN:VEVENT
-UID:reading-festival@calendar-app.apineschi
 SUMMARY:Reading Festival
 DTSTART;VALUE=DATE:20270826
 DTEND;VALUE=DATE:20270830
-DTSTAMP:20261028T170417Z
-LOCATION:Richfield Avenue, Reading
+DTSTAMP:20261028T170510Z
+UID:reading-festival@calendar-app.apineschi
 DESCRIPTION:https://www.readingfestival.com/
+LOCATION:Richfield Avenue\, Reading
 END:VEVENT
 BEGIN:VEVENT
-UID:goblin-market@calendar-app.apineschi
 SUMMARY:Goblin Market
 DTSTART;VALUE=DATE:20261018
 DTEND;VALUE=DATE:20261019
-DTSTAMP:20261028T170417Z
-LOCATION:Stanley Arts
+DTSTAMP:20261028T170510Z
+UID:goblin-market@calendar-app.apineschi
 DESCRIPTION:Free\nhttps://stanleyarts.org/event/goblin-market/
+LOCATION:Stanley Arts
 END:VEVENT
 BEGIN:VEVENT
-UID:farm-shop-and-deli-show@calendar-app.apineschi
 SUMMARY:Farm Shop and Deli Show
 DTSTART;VALUE=DATE:20270412
 DTEND;VALUE=DATE:20270415
-DTSTAMP:20261028T170417Z
-LOCATION:NEC, Marston Green, Birmingham
+DTSTAMP:20261028T170510Z
+UID:farm-shop-and-deli-show@calendar-app.apineschi
 DESCRIPTION:https://www.farmshopanddelishow.co.uk/
+LOCATION:NEC\, Marston Green\, Birmingham
 END:VEVENT
 BEGIN:VEVENT
-UID:shake-the-high-road-leyton-festival@calendar-app.apineschi
 SUMMARY:Shake The High Road Leyton Festival
 DTSTART;VALUE=DATE:20270508
 DTEND;VALUE=DATE:20270510
-DTSTAMP:20261028T170417Z
-LOCATION:Multiple Venues across Leytonstone (London E11), GB
-DESCRIPTION:GBP 32\nhttps://tickets.shakethehighroad.com/events/shakethehighroad/2449614
+DTSTAMP:20261028T170510Z
+UID:shake-the-high-road-leyton-festival@calendar-app.apineschi
+DESCRIPTION:GBP 32\nhttps://tickets.shakethehighroad.com/events/shakethehi
+ ghroad/2449614
+LOCATION:Multiple Venues across Leytonstone (London E11)\, GB
 END:VEVENT
 BEGIN:VEVENT
-UID:royal-academy-summer-exhibition@calendar-app.apineschi
 SUMMARY:Royal Academy Summer Exhibition
-DTSTART;VALUE=DATE:20270518
+DTSTART;VALUE=DATE:20270815
 DTEND;VALUE=DATE:20270816
-DTSTAMP:20261028T170417Z
-DESCRIPTION:Free\nhttps://www.royalacademy.org.uk/exhibition/summer-exhibition-2027
+DTSTAMP:20261028T170510Z
+UID:royal-academy-summer-exhibition@calendar-app.apineschi
+DESCRIPTION:Free\nhttps://www.royalacademy.org.uk/exhibition/summer-exhibi
+ tion-2027
 END:VEVENT
 BEGIN:VEVENT
-UID:imprint-art-fair@calendar-app.apineschi
 SUMMARY:Imprint Art Fair
-DTSTART;VALUE=DATE:20261029
+DTSTART;VALUE=DATE:20261101
 DTEND;VALUE=DATE:20261102
-DTSTAMP:20261028T170417Z
-DESCRIPTION:Previously Woolwich Contemporary Print Fair\nhttps://imprintartfair.com
+DTSTAMP:20261028T170510Z
+UID:imprint-art-fair@calendar-app.apineschi
+DESCRIPTION:Previously Woolwich Contemporary Print Fair\nhttps://imprintar
+ tfair.com
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:MadNes Festival
+DTSTART;VALUE=DATE:20270702
+DTEND;VALUE=DATE:20270705
+DTSTAMP:20261028T170510Z
+UID:madnes-festival@calendar-app.apineschi
+DESCRIPTION:Surfing festival in the Netherlands on the Ameland island\nhtt
+ ps://www.madnesfestival.nl/english
+LOCATION:Ameland\, The Netherlands
 END:VEVENT
 END:VCALENDAR
