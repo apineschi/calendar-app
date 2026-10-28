@@ -256,5 +256,28 @@
     "alert_sent_for_year": null,
     "went_stale_notified_for_year": null,
     "calendar_uid": "imprint-art-fair@calendar-app.apineschi"
+  },
+  "madnes-festival": {
+    "id": "madnes-festival",
+    "name": "MadNes Festival",
+    "url": "https://www.madnesfestival.nl/english",
+    "location": null,
+    "start_date": null,
+    "end_date": null,
+    "is_free": false,
+    "price_text": null,
+    "region": "international",
+    "tags": [
+      "festival",
+      "music",
+      "surfing"
+    ],
+    "notes": "Surfing festival in the Netherlands on the Ameland island",
+    "last_known_year": null,
+    "last_known_month": null,
+    "last_checked": null,
+    "alert_sent_for_year": null,
+    "went_stale_notified_for_year": null,
+    "calendar_uid": "madnes-festival@calendar-app.apineschi"
   }
 }
