@@ -301,5 +301,27 @@
     "alert_sent_for_year": null,
     "went_stale_notified_for_year": null,
     "calendar_uid": "london-illustration-fair@calendar-app.apineschi"
+  },
+  "fume-bbq-festival": {
+    "id": "fume-bbq-festival",
+    "name": "Fume BBQ Festival",
+    "url": "https://fumefestival.com/about",
+    "location": null,
+    "start_date": null,
+    "end_date": null,
+    "is_free": false,
+    "price_text": null,
+    "region": "uk",
+    "tags": [
+      "festival",
+      "food"
+    ],
+    "notes": "",
+    "last_known_year": null,
+    "last_known_month": null,
+    "last_checked": null,
+    "alert_sent_for_year": null,
+    "went_stale_notified_for_year": null,
+    "calendar_uid": "fume-bbq-festival@calendar-app.apineschi"
   }
 }
